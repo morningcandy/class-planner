@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>학급 안내</title>
+<style>
+  :root{ --class:#2563eb; --class-bg:#eff6ff; --ink:#1f2937; --sub:#6b7280; --line:#e5e7eb; --bg:#f9fafb; --card:#ffffff;
+         --red:#dc2626; --red-bg:#fef2f2; --blue:#2563eb; --blue-bg:#eff6ff;
+         --exam-bg:#fef9c3; --exam-bar:#eab308; --exam-ink:#92400e;
+         --prep-bg:#eef2f7; --prep-bar:#94a3b8; --prep-ink:#475569; }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,Arial,sans-serif;}
+  .wrap{max-width:760px;margin:0 auto;padding:24px 16px 60px;}
+  header h1{font-size:22px;margin:0 0 4px;}
+  header p{margin:0;color:var(--sub);font-size:13px;}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px;}
+  section h2{font-size:15px;margin:0 0 12px;}
+  .empty{color:var(--sub);font-size:13px;text-align:center;padding:28px 8px;}
+  .notice-card{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+  .notice-card:last-child{margin-bottom:0;}
+  .notice-date{font-size:12px;color:var(--sub);}
+  .notice-title{font-weight:600;font-size:15px;margin:2px 0 6px;}
+  .notice-body{font-size:13px;color:#374151;white-space:pre-wrap;line-height:1.6;}
+
+  /* 범례 */
+  .legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:14px;font-size:12px;color:#374151;}
+  .legend .item{display:flex;align-items:center;gap:6px;}
+  .sw{width:14px;height:14px;border-radius:4px;flex:none;border:1px solid rgba(0,0,0,.06);}
+  .sw.red{background:var(--red-bg);border-color:var(--red);}
+  .sw.blue{background:var(--blue-bg);border-color:var(--blue);}
+  .sw.exam{background:var(--exam-bg);border-bottom:3px solid var(--exam-bar);}
+  .sw.prep{background:var(--prep-bg);border-bottom:3px solid var(--prep-bar);}
+
+  /* 달력 네비게이션 */
+  .cal-nav{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .cal-nav button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-size:14px;cursor:pointer;color:var(--ink);}
+  .cal-nav button:hover{background:#f3f4f6;}
+  .cal-nav .nav-arrow{font-weight:700;line-height:1;font-size:16px;}
+  .cal-nav select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:14px;background:#fff;color:var(--ink);cursor:pointer;}
+  .cal-nav .today-btn{border-color:var(--class);color:var(--class);font-weight:600;}
+  .cal-nav .today-btn:hover{background:var(--class-bg);}
+
+  /* 달력 */
+  .month{margin-bottom:0;}
+  .cal-header{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px;font-weight:700;font-size:15px;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+  .cal-dow{text-align:center;font-size:11px;color:var(--sub);padding:4px 0;font-weight:600;}
+  .cal-dow.sun{color:var(--red);}
+  .cal-dow.sat{color:var(--blue);}
+  .cal-cell{position:relative;min-height:62px;border:1px solid var(--line);border-radius:8px;padding:4px;overflow:hidden;}
+  .cal-cell.out{background:#fafafa;border-color:#f1f1f1;}
+  .cal-cell.today{outline:2px solid var(--ink);outline-offset:-2px;}
+  .cal-daynum{font-size:11px;color:var(--sub);font-weight:600;}
+
+  /* 공휴일/일요일/재량휴업일 = 빨강, 토요일 = 파랑 */
+  .cal-cell.red{background:var(--red-bg);}
+  .cal-cell.red .cal-daynum{color:var(--red);}
+  .cal-cell.blue{background:var(--blue-bg);}
+  .cal-cell.blue .cal-daynum{color:var(--blue);}
+  .cal-hol{font-size:9px;font-weight:700;color:var(--red);margin-top:1px;line-height:1.25;}
+
+  /* 연결 표시 = 고사기간 / 신학기 준비기간 */
+  .cal-cell.period::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;}
+  .cal-cell.exam{background:var(--exam-bg);}
+  .cal-cell.exam::after{background:var(--exam-bar);}
+  .cal-cell.prep{background:var(--prep-bg);}
+  .cal-cell.prep::after{background:var(--prep-bar);}
+  .cal-cell.p-start{border-top-left-radius:10px;border-bottom-left-radius:10px;}
+  .cal-cell.p-end{border-top-right-radius:10px;border-bottom-right-radius:10px;}
+  .period-name{font-size:9px;font-weight:700;margin-top:2px;line-height:1.2;}
+  .exam .period-name{color:var(--exam-ink);}
+  .prep .period-name{color:var(--prep-ink);}
+
+  .cal-ev{font-size:9px;line-height:1.25;color:#374151;margin-top:1px;}
+  /* 달력 안 '할일 마감' 마커 */
+  .cal-cell.has-task .cal-daynum{display:inline-flex;align-items:center;gap:2px;}
+  .task-pin{font-size:9px;}
+
+  /* 오늘 할일 체크리스트 */
+  .todo-sub{font-size:11px;font-weight:400;color:var(--sub);margin-left:6px;}
+  .todo-pinned{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;}
+  .todo-pinned:empty{display:none;margin:0;}
+  #todoList{display:flex;flex-direction:column;gap:8px;}
+  .todo-item{display:flex;align-items:flex-start;gap:10px;border:1px solid var(--line);border-radius:10px;padding:11px 12px;cursor:pointer;background:#fff;}
+  .todo-item input{margin-top:2px;width:18px;height:18px;flex:none;accent-color:var(--class);cursor:pointer;}
+  .todo-main{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+  .todo-title{font-size:14px;font-weight:600;line-height:1.35;}
+  .todo-note{font-size:12px;color:var(--sub);line-height:1.35;}
+  .todo-badge{font-size:11px;font-weight:700;white-space:nowrap;padding:3px 8px;border-radius:999px;align-self:flex-start;}
+  .todo-due{font-weight:500;}
+  .todo-badge.u-today{background:#fee2e2;color:#b91c1c;}
+  .todo-badge.u-soon{background:#ffedd5;color:#c2410c;}
+  .todo-badge.u-near{background:#fef9c3;color:#854d0e;}
+  .todo-badge.u-far{background:#eef2f7;color:#475569;}
+  .todo-item.pinned{border-width:2px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .todo-item.pinned.u-today{border-color:#ef4444;background:#fff5f5;}
+  .todo-item.pinned.u-soon{border-color:#f97316;background:#fff8f2;}
+  .todo-item.pinned .todo-title{font-size:15px;}
+  .todo-item.done{opacity:.55;}
+  .todo-item.done .todo-title{text-decoration:line-through;color:var(--sub);}
+
+  /* 전체 일정 (담임/교과/개인) */
+  .sched-filter{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+  .sched-filter button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--sub);}
+  .sched-filter button.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .sched-item{display:flex;align-items:flex-start;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line);}
+  .sched-item:last-child{border-bottom:none;}
+  .sched-chip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap;flex:none;margin-top:1px;}
+  .sched-main{flex:1;min-width:0;}
+  .sched-title{font-size:14px;font-weight:600;line-height:1.35;}
+  .sched-note{font-size:12px;color:var(--sub);line-height:1.35;}
+  .sched-date{font-size:12px;color:var(--sub);white-space:nowrap;flex:none;margin-top:2px;}
+  .sched-item.past{opacity:.45;}
+  .c-hr{background:#dbeafe;color:#1d4ed8;}
+  .c-sub{background:#dcfce7;color:#15803d;}
+  .c-me{background:#f3e8ff;color:#7e22ce;}
+  .push-row{display:flex;justify-content:flex-end;margin-bottom:6px;}
+  .push-btn{display:inline-flex;align-items:center;gap:5px;background:var(--class);color:#fff;border-radius:8px;padding:8px 13px;font-size:12.5px;font-weight:600;text-decoration:none;cursor:pointer;}
+  .push-btn:hover{opacity:.9;}
+  .push-btn.disabled{background:#cbd5e1;color:#64748b;cursor:not-allowed;pointer-events:none;}
+  .push-hint{font-size:11px;color:var(--sub);margin:0 2px 12px;line-height:1.5;}
+
+  /* 주간계획 */
+  .week-nav{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;}
+  .week-nav button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-size:14px;cursor:pointer;color:var(--ink);}
+  .week-nav button:hover{background:#f3f4f6;}
+  .week-nav .nav-arrow{font-weight:700;font-size:16px;line-height:1;}
+  .week-nav .today-btn{border-color:var(--class);color:var(--class);font-weight:600;}
+  .week-nav .today-btn:hover{background:var(--class-bg);}
+  .week-row{display:grid;grid-template-columns:52px 1fr;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);}
+  .week-row:last-child{border-bottom:none;}
+  .week-row.today{background:#f1f5f9;border-radius:8px;}
+  .week-day{font-size:13px;font-weight:700;text-align:center;}
+  .week-day .wd-date{font-size:11px;color:var(--sub);font-weight:500;display:block;margin-top:1px;}
+  .week-day.sun,.week-day.sun .wd-date{color:var(--red);}
+  .week-day.sat,.week-day.sat .wd-date{color:var(--blue);}
+  .week-items{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .week-line{font-size:12px;line-height:1.45;}
+  .wl-tag{font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;margin-right:5px;white-space:nowrap;}
+  .wl-hol{background:#fee2e2;color:#b91c1c;}
+  .wl-period{background:#fef9c3;color:#854d0e;}
+  .wl-event{background:#e5e7eb;color:#374151;}
+  .wl-hr{background:#dbeafe;color:#1d4ed8;}
+  .wl-sub{background:#dcfce7;color:#15803d;}
+  .wl-me{background:#f3e8ff;color:#7e22ce;}
+  .wl-task{background:#fee2e2;color:#b91c1c;}
+  .week-empty{font-size:12px;color:#cbd5e1;}
+
+  /* 시정표 */
+  .bell{width:100%;border-collapse:collapse;font-size:13px;}
+  .bell th,.bell td{border:1px solid var(--line);padding:7px 10px;text-align:center;}
+  .bell th{background:#f1f5f9;font-weight:700;}
+  .bell td:first-child{font-weight:600;width:38%;}
+  .bell tr.lunch td{background:#fff3e6;color:#9a3412;}
+  .bell-note{font-size:12px;color:var(--sub);margin:10px 2px 0;line-height:1.7;}
+  footer{color:var(--sub);font-size:12px;text-align:center;margin-top:16px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>우리 반 학급 안내</h1>
+    <p id="updatedAt"></p>
+  </header>
+
+  <!-- 0. 안내사항 -->
+  <section>
+    <h2>📢 안내사항</h2>
+    <div id="noticeList"></div>
+  </section>
+
+  <!-- 1. 오늘 할일 -->
+  <section>
+    <h2>✅ 오늘 할일 <span class="todo-sub">마감 임박순 · 체크하면 다음날 자동으로 정리돼요</span></h2>
+    <div id="todoPinned" class="todo-pinned"></div>
+    <div id="todoList"></div>
+  </section>
+
+  <!-- 2. 전체 일정 -->
+  <section>
+    <h2>📋 전체 일정 <span class="todo-sub">담임 · 교과 · 개인</span></h2>
+    <div class="sched-filter" id="schedFilter">
+      <button data-cat="all" class="active">전체</button>
+      <button data-cat="담임">담임</button>
+      <button data-cat="교과">교과</button>
+      <button data-cat="개인">개인</button>
+    </div>
+    <div class="push-row">
+      <a id="pushBtn" class="push-btn" target="_blank" rel="noopener">📤 담임 일정 학급 사이트로 보내기</a>
+    </div>
+    <p class="push-hint">🔗 <b>담임</b>으로 표시된 일정만 학급용(학생) 사이트 달력에 <b>[담임]</b> 일정으로 전송됩니다.</p>
+    <div id="schedList"></div>
+  </section>
+
+  <!-- 3. 달력 -->
+  <section>
+    <h2 id="calSectionTitle">학사일정</h2>
+    <div class="legend">
+      <div class="item"><span class="sw red"></span>국가공휴일·일요일·재량휴업일</div>
+      <div class="item"><span class="sw blue"></span>토요일</div>
+      <div class="item"><span class="sw exam"></span>고사기간</div>
+      <div class="item"><span class="sw prep"></span>신학기 준비기간</div>
+      <div class="item">📌 할일 마감일</div>
+    </div>
+    <div class="cal-nav">
+      <button id="prevBtn" class="nav-arrow" aria-label="이전 달">‹</button>
+      <select id="yearSel" aria-label="년도 선택"></select>
+      <select id="monthSel" aria-label="월 선택"></select>
+      <button id="nextBtn" class="nav-arrow" aria-label="다음 달">›</button>
+      <button id="todayBtn" class="today-btn">오늘</button>
+    </div>
+    <div id="calView"></div>
+  </section>
+
+  <!-- 4. 주간계획 -->
+  <section>
+    <h2>🗓️ 주간계획 <span class="todo-sub" id="weekRange"></span></h2>
+    <div class="week-nav">
+      <button id="weekPrev" class="nav-arrow" aria-label="지난 주">‹</button>
+      <button id="weekThis" class="today-btn">이번 주</button>
+      <button id="weekNext" class="nav-arrow" aria-label="다음 주">›</button>
+    </div>
+    <div id="weekPlan"></div>
+  </section>
+
+  <!-- 시정표 (참고) -->
+  <section>
+    <h2>🔔 시정표 <span class="todo-sub">2학기 수업시간</span></h2>
+    <table class="bell">
+      <tr><th>교시</th><th>시간</th></tr>
+      <tr><td>조회</td><td>08:00 ~ 08:10</td></tr>
+      <tr><td>1교시</td><td>08:20 ~ 09:10</td></tr>
+      <tr><td>2교시</td><td>09:20 ~ 10:10</td></tr>
+      <tr><td>3교시</td><td>10:20 ~ 11:10</td></tr>
+      <tr><td>4교시</td><td>11:20 ~ 12:10</td></tr>
+      <tr class="lunch"><td>점심시간</td><td>12:10 ~ 13:10</td></tr>
+      <tr><td>5교시</td><td>13:10 ~ 14:00</td></tr>
+      <tr><td>6교시</td><td>14:10 ~ 15:00</td></tr>
+      <tr><td>7교시</td><td>15:10 ~ 16:00</td></tr>
+    </table>
+    <p class="bell-note">· 나이스 학생 지각 기준: 8시 10분<br>· 4교시 후 점심<br>· 개학 첫 주는 단축수업 없이 8/18(화)부터 정상수업</p>
+  </section>
+
+  <footer>이 페이지는 선생님이 정리해서 올려주는 학급 안내입니다.</footer>
+</div>
+
+<script>
+const DATA = { "updatedAt": "2026-08-14" };
+const SEMESTER_TITLE = "2026학년도 2학기 학사일정";
+
+// ── 안내사항 ──
+// 형식: { date:"YYYY-MM-DD", title:"제목", body:"본문(줄바꿈 가능)" }
+const NOTICES = [
+  {
+    date: "2026-08-18",
+    title: "개학 첫 주 정상수업 안내 (온라인학교 수업 관련)",
+    body: "온라인학교 수업 관계로 개학 첫 주에는 단축수업을 하지 않습니다.\n8월 18일(화)부터 정상수업으로 운영됩니다."
+  },
+  {
+    date: "2026-08-18",
+    title: "8/18(화) 개학일 일정",
+    body: "· 학생 등교 : 08:00까지\n· 개학식 및 대청소 : 1교시\n· 교과수업 : 2교시 ~ 7교시\n· 교직원회의 : 08:10, 1교무실\n· 1학년 문해력·수리력 검사 : 6·7교시\n· 종례 및 귀가 : 16:00"
+  }
+];
+
+// ── 학급용(학생) 사이트 주소 ──
+// [담임 일정 보내기] 버튼이 이 주소로 담임 일정을 넘깁니다.
+// 학생 앱을 GitHub Pages에 올린 뒤, 아래 "" 안에 그 주소(https://...)를 넣으면
+// 버튼이 자동으로 활성화됩니다. (비워두면 버튼은 '배포 후 활성화' 상태로 표시)
+const CLASS_SITE_URL = "";
+
+// ── 오늘 날짜 ──
+// null 이면 '실제 오늘'을 사용합니다 (마감 계산·다음날 자동삭제가 실제로 동작).
+// 특정 날짜로 테스트하려면 "2026-08-14" 처럼 넣으세요.
+const TODAY_OVERRIDE = null;
+function todayStr(){
+  if(TODAY_OVERRIDE) return TODAY_OVERRIDE;
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+// ── 오늘 할일(과제·준비물 등) ──
+// 형식: { id:"고유값", title:"할일", due:"YYYY-MM-DD", note:"메모(선택)" }
+// * 기한이 지나거나 완료한 항목은 다음날 자동으로 사라집니다.
+// * 아래는 예시입니다. 내용을 주시면 이 목록을 교체해 드립니다.
+const TASKS = [
+  { id:"t-0818a", title:"2학기 방과후학교 강좌 제출", due:"2026-08-18", note:"각 교과" },
+  { id:"t-0818b", title:"1학기 학교생활기록부 작성 확인", due:"2026-08-18", note:"" },
+  { id:"t-0819",  title:"나이스 1학기 과목별 출결 마감·학점 반영", due:"2026-08-19", note:"1·2학년" },
+  { id:"t-0821a", title:"1학기 학생부 학급별 교차점검", due:"2026-08-21", note:"전 학급 (~8/21)" },
+  { id:"t-0821b", title:"전입생 이전학교 과목세특 수정사항 제출", due:"2026-08-21", note:"1·2학년" }
+];
+
+// ── 전체 일정 (담임 / 교과 / 개인) ──
+// 형식: { cat:"담임"|"교과"|"개인", title:"내용", date:"YYYY-MM-DD", note:"메모(선택)" }
+// * 아래는 예시입니다. 자료를 주시면 이 목록을 교체해 드립니다.
+const SCHEDULE = [
+  // 담임
+  { cat:"담임", title:"개학식 및 대청소 (1교시)", date:"2026-08-18", note:"정상수업(단축 없음) · 등교 08:00 / 종례 16:00" },
+  // 교과
+  { cat:"교과", title:"2학기 방과후학교 수강신청 시작", date:"2026-08-21", note:"08:00~ · 해성에듀" },
+  // 개인 (연수·회의 — 선생님 해당 시 유지, 아니면 삭제)
+  { cat:"개인", title:"학생부종합전형 서류 모의평가", date:"2026-08-18", note:"14:30~16:00 · A실" },
+  { cat:"개인", title:"2026 생명지킴이 연수", date:"2026-08-18", note:"14:00~17:00 · 성균관대" },
+  { cat:"개인", title:"AI 디지털 활용 역량강화 연수", date:"2026-08-21", note:"14:30~" }
+];
+
+// 카테고리 → CSS 클래스 매핑
+const CATCLASS = { "담임":"c-hr", "교과":"c-sub", "개인":"c-me" };
+const WLCLASS  = { "담임":"wl-hr", "교과":"wl-sub", "개인":"wl-me" };
+
+// 섹션별 상태
+let schedCat = "all";   // 전체 일정 필터
+let weekOffset = 0;     // 주간계획: 0 = 이번 주
+
+// 현재 화면에 보이는 달 (오늘 기준으로 시작)
+let viewY, viewM;
+(function(){ const t = todayStr(); viewY = parseInt(t.slice(0,4),10); viewM = parseInt(t.slice(5,7),10); })();
+
+// 화면에 표시 중인 '할일 마감일' 모음 (달력 마커용)
+let ACTIVE_DUE = new Set();
+
+// 빨강: 국가공휴일 (요일 무관)
+const HOLIDAYS = {
+  "2026-08-15":"광복절",
+  "2026-08-17":"대체휴일",
+  "2026-09-24":"추석연휴",
+  "2026-09-25":"추석",
+  "2026-10-03":"개천절",
+  "2026-10-05":"대체휴일",
+  "2026-10-09":"한글날",
+  "2026-12-25":"성탄절",
+  "2027-01-01":"신정",
+  "2027-02-08":"설날 연휴",
+  "2027-02-09":"대체휴일"
+};
+
+// 빨강: 재량휴업일
+const DISCRETION = {
+  "2026-11-19":"재량휴업일(1,2)",
+  "2026-11-20":"재량휴업일"
+};
+
+// 연결 표시 기간 (주말은 자동으로 끊김)
+const PERIODS = [
+  {cat:"exam", name:"중간고사", dates:["2026-10-13","2026-10-14","2026-10-15","2026-10-16"]},
+  {cat:"exam", name:"기말고사", dates:["2026-12-10","2026-12-11","2026-12-14","2026-12-15","2026-12-16"]},
+  {cat:"prep", name:"신학년 집중준비기간", dates:["2027-02-22","2027-02-23","2027-02-24","2027-02-25"]}
+];
+
+// 일반 일정 라벨
+const EVENTS = {
+  "2026-08-18":["개학식","문해력·수리력 검사(S-PLAN) 1차(1학년)"],
+  "2026-08-19":["학교폭력예방교육(6)","정·부회장 임명장 수여식(7)","사회정서교육(7)","일본 자매학교 교류활동"],
+  "2026-08-21":["신한대 입학설명회(3학년)","공유캠퍼스 국제정치 개강"],
+  "2026-08-22":["공유캠퍼스 국제정치(2·3차시)"],
+  "2026-08-26":["금요일수업"],
+  "2026-08-27":["동아리활동(6,7)","수요일 수업"],
+  "2026-08-28":["축제"],
+
+  "2026-08-31":["환경미화"],
+  "2026-09-02":["전국연합학력평가(1,2)","대수능 모의평가(3)"],
+  "2026-09-03":["특수학급 자립생활캠프"],
+  "2026-09-04":["국가수준 학업성취도평가(2)","특수학급 자립생활캠프","문해력·수리력 검사(S-PLAN) 2차"],
+  "2026-09-05":["2학기 리더십캠프"],
+  "2026-09-09":["성폭력·성매매 예방교육(6,7)"],
+  "2026-09-16":["흡연예방교육(6)","약물오남용·마약류 예방교육(7)"],
+  "2026-09-22":["금요일 수업"],
+  "2026-09-23":["학급회의(6)","사회정서교육(7)"],
+
+  "2026-09-30":["도박예방교육(6)","사회정서교육(7)"],
+  "2026-10-07":["사회정서교육(6,7)","인터넷 중독 예방교육"],
+  "2026-10-20":["전국연합학력평가(1,2,3)"],
+  "2026-10-21":["소규모 테마형 교육여행(1)"],
+  "2026-10-22":["소규모 테마형 교육여행(1)"],
+  "2026-10-23":["소규모 테마형 교육여행(1)","학급별 체험학습(2)"],
+  "2026-10-26":["안전체험교육(1)","독도교육주간(~30)","작은음악회"],
+  "2026-10-28":["학교폭력예방교육(6)","아동학대예방교육(7)"],
+
+  "2026-11-02":["학부모 상담주간(~6)","학술제"],
+  "2026-11-04":["사회정서교육(6,7)"],
+  "2026-11-06":["학교 공개의 날","특수학급 홈커밍데이"],
+  "2026-11-11":["사회정서교육(6,7)"],
+  "2026-11-14":["본교 설명회"],
+  "2026-11-16":["목요일 수업"],
+  "2026-11-17":["금요일 수업"],
+  "2026-11-19":["대학수학능력시험(3)"],
+  "2026-11-25":["봉사활동평가(6)","동아리활동(7)"],
+  "2026-11-27":["배드민턴 한마당"],
+
+  "2026-12-02":["학생인권교육(6,7)"],
+  "2026-12-09":["실종·유괴 예방/방지교육(6,7)"],
+  "2026-12-23":["사회정서교육(6,7)","글맛대첩"],
+  "2026-12-24":["태권도 한마당"],
+  "2026-12-29":["2027 학생회장단 선거"],
+  "2026-12-30":["방학식"],
+
+  "2027-02-01":["개학식"],
+  "2027-02-03":["사회정서교육(6,7)"],
+  "2027-02-04":["졸업식(3)"],
+  "2027-02-05":["종업식(1,2)"]
+};
+
+document.getElementById('updatedAt').textContent = "업데이트: " + DATA.updatedAt;
+document.getElementById('calSectionTitle').textContent = SEMESTER_TITLE;
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function pad(n){ return String(n).padStart(2,'0'); }
+function shiftDate(dateStr, delta){
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + delta);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+// 기간별 위치(시작/끝) 계산 — 주말 등으로 날짜가 끊기면 세그먼트가 나뉨
+const PERIOD_MAP = {};
+PERIODS.forEach(p=>{
+  const set = new Set(p.dates);
+  p.dates.forEach(dt=>{
+    PERIOD_MAP[dt] = {
+      cat:p.cat, name:p.name,
+      start: !set.has(shiftDate(dt,-1)),
+      end:   !set.has(shiftDate(dt,1))
+    };
+  });
+});
+
+function renderMonth(y, m){
+  const dow = ['일','월','화','수','목','금','토'];
+  let html = `<div class="month">`;
+  html += `<div class="cal-grid">`;
+  html += dow.map((x,i)=>`<div class="cal-dow${i===0?' sun':''}${i===6?' sat':''}">${x}</div>`).join('');
+
+  const startOffset = new Date(y, m-1, 1).getDay();
+  const daysInMonth = new Date(y, m, 0).getDate();
+  for(let i=0;i<startOffset;i++) html += `<div class="cal-cell out"></div>`;
+
+  for(let day=1; day<=daysInMonth; day++){
+    const dateStr = `${y}-${pad(m)}-${pad(day)}`;
+    const wd = new Date(dateStr + "T00:00:00").getDay();
+    const holName = HOLIDAYS[dateStr] || DISCRETION[dateStr] || null;
+    const pm = PERIOD_MAP[dateStr];
+
+    const isDue = ACTIVE_DUE.has(dateStr);
+
+    let cls = "cal-cell";
+    if(dateStr === todayStr()) cls += " today";
+    if(holName || wd === 0) cls += " red";
+    else if(wd === 6) cls += " blue";
+    if(pm){
+      cls += " period " + pm.cat;
+      if(pm.start) cls += " p-start";
+      if(pm.end)   cls += " p-end";
+    }
+    if(isDue) cls += " has-task";
+
+    let inner = `<div class="cal-daynum">${day}${isDue ? '<span class="task-pin">📌</span>' : ''}</div>`;
+    if(holName) inner += `<div class="cal-hol">${escapeHtml(holName)}</div>`;
+    if(pm && pm.start) inner += `<div class="period-name">${escapeHtml(pm.name)}</div>`;
+    (EVENTS[dateStr] || []).forEach(ev => {
+      inner += `<div class="cal-ev">${escapeHtml(ev)}</div>`;
+    });
+
+    html += `<div class="${cls}">${inner}</div>`;
+  }
+
+  html += `</div></div>`;
+  return html;
+}
+
+function buildSelects(){
+  const yearSel = document.getElementById('yearSel');
+  const monthSel = document.getElementById('monthSel');
+  // 기본 년도 범위(2025~2028) + 현재 보기 년도를 항상 포함
+  const years = new Set([2025,2026,2027,2028]);
+  years.add(viewY);
+  const yearList = [...years].sort((a,b)=>a-b);
+  yearSel.innerHTML = yearList.map(y=>`<option value="${y}">${y}년</option>`).join('');
+  monthSel.innerHTML = Array.from({length:12},(_,i)=>`<option value="${i+1}">${i+1}월</option>`).join('');
+  yearSel.value = String(viewY);
+  monthSel.value = String(viewM);
+}
+
+function renderCalendar(){
+  buildSelects();
+  ACTIVE_DUE = new Set(getActiveTasks().map(t => t.due));
+  document.getElementById('calView').innerHTML = renderMonth(viewY, viewM);
+}
+
+function goMonth(delta){
+  const idx = viewY*12 + (viewM-1) + delta;
+  viewY = Math.floor(idx/12);
+  viewM = (idx%12) + 1;
+  renderCalendar();
+}
+
+document.getElementById('prevBtn').addEventListener('click', ()=>goMonth(-1));
+document.getElementById('nextBtn').addEventListener('click', ()=>goMonth(1));
+document.getElementById('todayBtn').addEventListener('click', ()=>{
+  const t = todayStr();
+  viewY = parseInt(t.slice(0,4),10);
+  viewM = parseInt(t.slice(5,7),10);
+  renderCalendar();
+});
+document.getElementById('yearSel').addEventListener('change', e=>{ viewY=parseInt(e.target.value,10); renderCalendar(); });
+document.getElementById('monthSel').addEventListener('change', e=>{ viewM=parseInt(e.target.value,10); renderCalendar(); });
+
+/* ── 오늘 할일 로직 ── */
+const DONE_KEY = "classNotice.taskDone.v1";
+function loadDone(){ try{ return JSON.parse(localStorage.getItem(DONE_KEY)) || {}; }catch(e){ return {}; } }
+function saveDone(o){ try{ localStorage.setItem(DONE_KEY, JSON.stringify(o)); }catch(e){} }
+
+function ymd(dateStr){ const [y,m,d]=dateStr.split('-').map(Number); return Date.UTC(y,m-1,d); }
+function daysBetween(fromStr, toStr){ return Math.round((ymd(toStr)-ymd(fromStr))/86400000); } // to - from
+
+// 표시 대상: 기한이 안 지났고(오늘 포함), 이전 날 완료한 게 아닌 항목
+function getActiveTasks(){
+  const today = todayStr();
+  const done = loadDone();
+  return TASKS.filter(t=>{
+    if(daysBetween(today, t.due) < 0) return false;      // 기한 지남 → 제거
+    const cd = done[t.id];
+    if(cd && cd < today) return false;                    // 이전 날 완료 → 제거
+    return true;
+  }).sort((a,b)=> daysBetween(today,a.due) - daysBetween(today,b.due));
+}
+
+function urgency(d){
+  if(d <= 0) return { emoji:'🚨', label:'오늘 마감', cls:'u-today' };
+  if(d === 1) return { emoji:'🚨', label:'내일 마감 (D-1)', cls:'u-soon' };
+  if(d === 2) return { emoji:'🚨', label:'D-2', cls:'u-soon' };
+  if(d <= 6) return { emoji:'⏰', label:'D-'+d, cls:'u-near' };
+  return { emoji:'', label:'D-'+d, cls:'u-far' };
+}
+
+function fmtDue(dateStr){
+  const [y,m,d]=dateStr.split('-').map(Number);
+  const wd = ['일','월','화','수','목','금','토'][new Date(y,m-1,d).getDay()];
+  return `${m}/${d}(${wd})`;
+}
+
+function taskCard(t, today, pinnedStyle){
+  const done = loadDone();
+  const isDone = !!done[t.id];
+  const d = daysBetween(today, t.due);
+  const u = urgency(d);
+  const cls = ['todo-item', u.cls, pinnedStyle?'pinned':'', isDone?'done':''].filter(Boolean).join(' ');
+  return `
+    <label class="${cls}">
+      <input type="checkbox" class="todo-check" data-id="${escapeHtml(t.id)}" ${isDone?'checked':''}>
+      <span class="todo-main">
+        <span class="todo-title">${u.emoji ? u.emoji+' ' : ''}${escapeHtml(t.title)}</span>
+        ${t.note ? `<span class="todo-note">${escapeHtml(t.note)}</span>` : ''}
+      </span>
+      <span class="todo-badge ${u.cls}">${u.label} · ${fmtDue(t.due)}</span>
+    </label>`;
+}
+
+function renderTasks(){
+  const today = todayStr();
+  const done = loadDone();
+  const active = getActiveTasks();
+  const pinnedEl = document.getElementById('todoPinned');
+  const listEl = document.getElementById('todoList');
+
+  if(active.length === 0){
+    pinnedEl.innerHTML = '';
+    listEl.innerHTML = '<div class="empty">지금은 표시할 할일이 없어요. 새 할일을 알려주세요!</div>';
+    return;
+  }
+
+  const pending = active.filter(t=> !done[t.id]);
+  const doneToday = active.filter(t=> done[t.id] === today);
+  const pinned = pending.filter(t=> daysBetween(today,t.due) <= 2);   // 임박(오늘~D-2) → 상단 고정
+  const normal = pending.filter(t=> daysBetween(today,t.due) > 2);
+
+  pinnedEl.innerHTML = pinned.map(t=> taskCard(t, today, true)).join('');
+  listEl.innerHTML =
+      normal.map(t=> taskCard(t, today, false)).join('')
+    + doneToday.map(t=> taskCard(t, today, false)).join('');
+
+  document.querySelectorAll('.todo-check').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const id = cb.dataset.id;
+      const dmap = loadDone();
+      if(cb.checked) dmap[id] = today; else delete dmap[id];
+      saveDone(dmap);
+      renderAll();
+    });
+  });
+}
+
+/* ── 전체 일정 (담임/교과/개인) ── */
+function renderSchedule(){
+  const today = todayStr();
+  const listEl = document.getElementById('schedList');
+  let items = SCHEDULE.slice().sort((a,b)=> a.date.localeCompare(b.date));
+  if(schedCat !== "all") items = items.filter(s=> s.cat === schedCat);
+  if(items.length === 0){
+    listEl.innerHTML = '<div class="empty">등록된 일정이 없어요. 자료를 알려주세요!</div>';
+    return;
+  }
+  listEl.innerHTML = items.map(s=>{
+    const past = s.date < today;
+    return `<div class="sched-item${past?' past':''}">
+      <span class="sched-chip ${CATCLASS[s.cat]||''}">${escapeHtml(s.cat)}</span>
+      <div class="sched-main">
+        <div class="sched-title">${escapeHtml(s.title)}</div>
+        ${s.note ? `<div class="sched-note">${escapeHtml(s.note)}</div>` : ''}
+      </div>
+      <div class="sched-date">${fmtDue(s.date)}</div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('schedFilter').addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  schedCat = btn.dataset.cat;
+  [...e.currentTarget.children].forEach(b=> b.classList.toggle('active', b === btn));
+  renderSchedule();
+});
+
+/* ── 주간계획 ── */
+function mondayOf(baseStr, offsetWeeks){
+  const d = new Date(baseStr + "T00:00:00");
+  const wd = (d.getDay()+6) % 7;              // 월=0 … 일=6
+  d.setDate(d.getDate() - wd + offsetWeeks*7);
+  return d;
+}
+function dstr(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+
+function renderWeek(){
+  const today = todayStr();
+  const mon = mondayOf(today, weekOffset);
+  const dowK = ['월','화','수','목','금','토','일'];
+  const days = [];
+  for(let i=0;i<7;i++){ const d = new Date(mon); d.setDate(mon.getDate()+i); days.push(d); }
+
+  const f = days[0], l = days[6];
+  document.getElementById('weekRange').textContent =
+    `${f.getMonth()+1}/${f.getDate()} ~ ${l.getMonth()+1}/${l.getDate()}` + (weekOffset===0 ? ' · 이번 주' : '');
+
+  let html = '';
+  days.forEach((d,i)=>{
+    const ds = dstr(d);
+    const wd = d.getDay();
+    const lines = [];
+    const hol = HOLIDAYS[ds] || DISCRETION[ds];
+    if(hol) lines.push(`<div class="week-line"><span class="wl-tag wl-hol">휴일</span>${escapeHtml(hol)}</div>`);
+    const pm = PERIOD_MAP[ds];
+    if(pm) lines.push(`<div class="week-line"><span class="wl-tag wl-period">${pm.cat==='exam'?'고사':'준비'}</span>${escapeHtml(pm.name)}</div>`);
+    (EVENTS[ds] || []).forEach(ev=> lines.push(`<div class="week-line"><span class="wl-tag wl-event">학사</span>${escapeHtml(ev)}</div>`));
+    SCHEDULE.filter(s=> s.date === ds).forEach(s=> lines.push(`<div class="week-line"><span class="wl-tag ${WLCLASS[s.cat]||'wl-event'}">${escapeHtml(s.cat)}</span>${escapeHtml(s.title)}</div>`));
+    TASKS.filter(t=> t.due === ds).forEach(t=> lines.push(`<div class="week-line"><span class="wl-tag wl-task">할일</span>${escapeHtml(t.title)} (마감)</div>`));
+
+    const dowCls = wd===0 ? 'sun' : (wd===6 ? 'sat' : '');
+    html += `<div class="week-row${ds===today?' today':''}">
+      <div class="week-day ${dowCls}">${dowK[i]}<span class="wd-date">${d.getMonth()+1}/${d.getDate()}</span></div>
+      <div class="week-items">${ lines.length ? lines.join('') : '<div class="week-empty">-</div>' }</div>
+    </div>`;
+  });
+  document.getElementById('weekPlan').innerHTML = html;
+}
+
+document.getElementById('weekPrev').addEventListener('click', ()=>{ weekOffset--; renderWeek(); });
+document.getElementById('weekNext').addEventListener('click', ()=>{ weekOffset++; renderWeek(); });
+document.getElementById('weekThis').addEventListener('click', ()=>{ weekOffset=0; renderWeek(); });
+
+/* ── 안내사항 ── */
+function renderNotices(){
+  const list = document.getElementById('noticeList');
+  if(!list) return;
+  const items = NOTICES.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(items.length === 0){
+    list.innerHTML = '<div class="empty">등록된 안내사항이 없어요.</div>';
+    return;
+  }
+  list.innerHTML = items.map(n => `
+    <div class="notice-card">
+      <div class="notice-date">${escapeHtml(n.date||'')}</div>
+      <div class="notice-title">${escapeHtml(n.title)}</div>
+      ${n.body ? `<div class="notice-body">${escapeHtml(n.body)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+/* ── 담임 일정 → 학급 사이트 전송 링크 갱신 ── */
+function updatePushLink(){
+  const btn = document.getElementById('pushBtn');
+  if(!btn) return;
+  const items = SCHEDULE.filter(s=> s.cat === '담임').map(s=> ({date:s.date, title:s.title}));
+  if(!CLASS_SITE_URL){
+    btn.removeAttribute('href');
+    btn.classList.add('disabled');
+    btn.title = '학생 앱을 배포한 뒤 CLASS_SITE_URL에 주소를 넣으면 활성화됩니다.';
+    btn.textContent = '📤 담임 일정 보내기 (학생 앱 배포 후 활성화)';
+    return;
+  }
+  btn.classList.remove('disabled');
+  btn.href = CLASS_SITE_URL + '#import=' + encodeURIComponent(JSON.stringify(items));
+  btn.textContent = `📤 담임 일정 학급 사이트로 보내기 (${items.length})`;
+}
+
+function renderAll(){ renderNotices(); renderCalendar(); renderTasks(); renderSchedule(); renderWeek(); updatePushLink(); }
+
+// 자정을 넘겨 날짜가 바뀌면 자동으로 새로 정리
+let _lastToday = todayStr();
+setInterval(()=>{
+  const t = todayStr();
+  if(t !== _lastToday){ _lastToday = t; renderAll(); }
+}, 60*1000);
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) return;
+  const t = todayStr();
+  if(t !== _lastToday){ _lastToday = t; renderAll(); }
+});
+
+renderAll();
+</script>
+</body>
+</html>
