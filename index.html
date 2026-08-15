@@ -226,7 +226,7 @@
     <div class="push-row">
       <a id="pushBtn" class="push-btn" target="_blank" rel="noopener">📤 체크한 일정 학급 사이트로 보내기</a>
     </div>
-    <p class="push-hint">🔗 각 일정의 <b>📤 전송</b>을 체크하면, 그 일정만 학급용(학생) 사이트 달력에 <b>[담임]</b> 일정으로 전송됩니다. · ✏️ 수정 · 🗑 삭제로 직접 편집할 수 있어요(이 브라우저에 저장).</p>
+    <p class="push-hint">🔗 각 일정의 <b>📤 전송</b>을 체크하면, 그 일정만 학생 사이트 <b>‘오늘의 안내’</b>에 <b>[담임]</b> 안내로 표시됩니다. · <b>학교</b> 필터엔 다가오는 2주 학사일정도 함께 떠서 바로 전송할 수 있어요. · 직접 추가한 일정은 ✏️ 수정 · 🗑 삭제 가능(이 브라우저에 저장).</p>
     <div id="schedList"></div>
   </section>
 
@@ -368,6 +368,27 @@ function loadSchedule(){
 }
 function saveSchedule(arr){ try{ localStorage.setItem(SCHED_KEY, JSON.stringify(arr)); }catch(e){} }
 let SCHEDULE = loadSchedule();
+
+// ── 학사일정(EVENTS) 중 '📤 전송' 체크 상태 (브라우저 저장) ──
+const EVENT_SEND_KEY = "classPlanner.eventSend.v1";
+function loadEventSend(){ try{ return JSON.parse(localStorage.getItem(EVENT_SEND_KEY)) || {}; }catch(e){ return {}; } }
+function saveEventSend(map){ try{ localStorage.setItem(EVENT_SEND_KEY, JSON.stringify(map)); }catch(e){} }
+
+// 다가오는 2주 학사일정 → '전체 일정'에 표시할 학교 항목으로 변환
+const SCHOOL_EVENT_DAYS = 14;
+function upcomingSchoolEvents(){
+  const today = todayStr();
+  const end = shiftDate(today, SCHOOL_EVENT_DAYS - 1);
+  const out = [];
+  Object.keys(EVENTS).forEach(date=>{
+    if(date >= today && date <= end){
+      (EVENTS[date]||[]).forEach((title, i)=>{
+        out.push({ id:`ev:${date}:${i}`, cat:"학교", title, date, note:"", isEvent:true });
+      });
+    }
+  });
+  return out;
+}
 
 // 섹션별 상태
 let schedCat = "all";   // 전체 일정 필터
@@ -656,7 +677,11 @@ function renderTasks(){
 function renderSchedule(){
   const today = todayStr();
   const listEl = document.getElementById('schedList');
-  let items = SCHEDULE.slice().sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  const eventSend = loadEventSend();
+  let items = SCHEDULE.slice();
+  // 다가오는 2주 학사일정을 '학교' 항목으로 병합 (전송 상태는 별도 저장에서 반영)
+  upcomingSchoolEvents().forEach(ev=> items.push({ ...ev, send: !!eventSend[ev.id] }));
+  items.sort((a,b)=> (a.date||'').localeCompare(b.date||''));
   if(schedCat !== "all") items = items.filter(s=> s.cat === schedCat);
   if(items.length === 0){
     listEl.innerHTML = '<div class="empty">등록된 일정이 없어요. “＋ 일정 추가”로 넣어보세요!</div>';
@@ -664,27 +689,37 @@ function renderSchedule(){
   }
   listEl.innerHTML = items.map(s=>{
     const past = s.date < today;
+    const acts = s.isEvent
+      ? ''   // 학사일정은 여기서 편집/삭제하지 않음(달력 원본 유지)
+      : `<div class="sched-acts">
+        <button class="edit-btn" data-id="${escapeHtml(s.id)}" title="수정">✏️</button>
+        <button class="del-btn" data-id="${escapeHtml(s.id)}" title="삭제">🗑</button>
+      </div>`;
     return `<div class="sched-item${past?' past':''}" data-id="${escapeHtml(s.id)}">
-      <span class="sched-chip ${CATCLASS[s.cat]||''}">${escapeHtml(s.cat)}</span>
+      <span class="sched-chip ${CATCLASS[s.cat]||''}">${escapeHtml(s.cat)}${s.isEvent?'·학사':''}</span>
       <div class="sched-main">
         <div class="sched-title">${escapeHtml(s.title)}</div>
         ${s.note ? `<div class="sched-note">${escapeHtml(s.note)}</div>` : ''}
         <div class="sched-date" style="margin-top:2px;">${fmtDue(s.date)}</div>
       </div>
       <label class="sched-send${s.send?' on':''}" title="학급 사이트로 보내기">
-        <input type="checkbox" class="send-check" data-id="${escapeHtml(s.id)}" ${s.send?'checked':''}>📤
+        <input type="checkbox" class="send-check" data-id="${escapeHtml(s.id)}" data-event="${s.isEvent?1:0}" ${s.send?'checked':''}>📤
       </label>
-      <div class="sched-acts">
-        <button class="edit-btn" data-id="${escapeHtml(s.id)}" title="수정">✏️</button>
-        <button class="del-btn" data-id="${escapeHtml(s.id)}" title="삭제">🗑</button>
-      </div>
+      ${acts}
     </div>`;
   }).join('');
 
   listEl.querySelectorAll('.send-check').forEach(cb=>{
     cb.addEventListener('change', ()=>{
-      const it = SCHEDULE.find(x=> x.id === cb.dataset.id);
-      if(it){ it.send = cb.checked; saveSchedule(SCHEDULE); renderSchedule(); updatePushLink(); }
+      if(cb.dataset.event === '1'){
+        const map = loadEventSend();
+        if(cb.checked) map[cb.dataset.id] = true; else delete map[cb.dataset.id];
+        saveEventSend(map);
+        renderSchedule(); updatePushLink();
+      } else {
+        const it = SCHEDULE.find(x=> x.id === cb.dataset.id);
+        if(it){ it.send = cb.checked; saveSchedule(SCHEDULE); renderSchedule(); updatePushLink(); }
+      }
     });
   });
   listEl.querySelectorAll('.edit-btn').forEach(b=>{
@@ -822,7 +857,10 @@ document.getElementById('weekThis').addEventListener('click', ()=>{ weekOffset=0
 function updatePushLink(){
   const btn = document.getElementById('pushBtn');
   if(!btn) return;
-  const items = SCHEDULE.filter(s=> s.send).map(s=> ({date:s.date, title:s.title}));
+  const items = [];
+  SCHEDULE.filter(s=> s.send).forEach(s=> items.push({date:s.date, title:s.title, note:s.note||''}));
+  const esend = loadEventSend();
+  upcomingSchoolEvents().forEach(ev=>{ if(esend[ev.id]) items.push({date:ev.date, title:ev.title, note:''}); });
   if(!CLASS_SITE_URL){
     btn.removeAttribute('href');
     btn.classList.add('disabled');
