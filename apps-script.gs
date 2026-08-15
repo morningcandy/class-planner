@@ -40,16 +40,12 @@ function onOpen() {
 
 /** 기존 탭은 건드리지 않고 앱 전용 탭만 생성한다. */
 function setupClassPlanner() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  Object.keys(APP.sheets).forEach(function (key) {
-    ensureSheet_(ss, APP.sheets[key], APP.headers[key]);
-  });
-  applyValidations_(ss);
   const props = PropertiesService.getScriptProperties();
   const createdDefaultToken = !props.getProperty('ADMIN_TOKEN_HASH');
   if (createdDefaultToken) {
     props.setProperty('ADMIN_TOKEN_HASH', sha256_('admin1234'));
   }
+  ensureClassPlannerSheets_();
   SpreadsheetApp.getUi().alert(
     '앱 전용 시트를 준비했습니다.\n\n' +
     (createdDefaultToken
@@ -126,6 +122,7 @@ function doPost(e) {
     }
 
     requireAdmin_(body.token);
+    ensureClassPlannerSheets_();
     switch (action) {
       case 'adminLoad': return json_(getAdminData_());
       case 'ingest': return json_(ingest_(body.rawText));
@@ -646,6 +643,14 @@ function ensureSheet_(ss, name, headers) {
   sheet.autoResizeColumns(1, headers.length);
 }
 
+function ensureClassPlannerSheets_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  Object.keys(APP.sheets).forEach(function (key) {
+    ensureSheet_(ss, APP.sheets[key], APP.headers[key]);
+  });
+  applyValidations_(ss);
+}
+
 function applyValidations_(ss) {
   const planner = ss.getSheetByName(APP.sheets.planner);
   const notices = ss.getSheetByName(APP.sheets.notices);
@@ -742,8 +747,15 @@ function audit_(action, recordType, recordId, summary) {
 }
 
 function requireAdmin_(token) {
-  const expected = PropertiesService.getScriptProperties().getProperty('ADMIN_TOKEN_HASH');
-  if (!expected) throw new Error('관리자 토큰이 아직 설정되지 않았습니다.');
+  const props = PropertiesService.getScriptProperties();
+  let expected = props.getProperty('ADMIN_TOKEN_HASH');
+  if (!expected) {
+    if (String(token || '') !== 'admin1234') {
+      throw new Error('관리자 토큰이 아직 설정되지 않았습니다.');
+    }
+    expected = sha256_('admin1234');
+    props.setProperty('ADMIN_TOKEN_HASH', expected);
+  }
   if (!token || sha256_(String(token)) !== expected) throw new Error('관리자 인증에 실패했습니다.');
 }
 
