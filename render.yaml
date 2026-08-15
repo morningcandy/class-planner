@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: class-planner-claude-bridge
+    runtime: docker
+    plan: free
+    region: singapore
+    repo: https://github.com/morningcandy/class-planner
+    branch: main
+    rootDir: server
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ALLOWED_ORIGINS
+        value: https://morningcandy.github.io
+      - key: CLAUDE_MODEL
+        value: sonnet
+      - key: CLAUDE_CODE_OAUTH_TOKEN
+        sync: false
+      - key: CLAUDE_BRIDGE_ACCESS_KEY
+        sync: false
