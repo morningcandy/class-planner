@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: class-planner-claude-bridge
+    name: morningcandy-class-planner-bridge-260815
     runtime: docker
     plan: free
     region: singapore
