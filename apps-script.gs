@@ -378,7 +378,7 @@ function fallbackAnalysis_(command) {
   const lines = command.content.split(/\r?\n/).map(function (line) { return line.trim(); }).filter(Boolean);
   const title = String(lines[0] || command.content).replace(/^[-•]\s*/, '').slice(0, 70);
   const date = extractDate_(command.content);
-  const looksLikeTask = /(제출|신청|준비|가져|작성|확인|완료|마감)/.test(command.content);
+  const looksLikeTask = /(제출|신청|준비(?:물|해|하|하기)|가져오|지참|작성|과제|숙제|마감)/.test(command.content);
   const notices = command.noticeScope ? [{
     scope: command.noticeScope,
     targetNames: command.targetNames,

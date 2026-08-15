@@ -330,6 +330,7 @@
         <div class="row-actions">
           <span class="date-label">${escapeHtml(dateLabel(date))}</span>
           <button data-item-action="edit" data-id="${escapeHtml(item.item_id)}">수정</button>
+          <button class="danger" data-item-action="delete" data-id="${escapeHtml(item.item_id)}">삭제</button>
         </div>
       </article>`;
   }
@@ -368,6 +369,23 @@
     return source.find((range) => date >= range.start && date <= range.end) || null;
   }
 
+  function calendarEntriesOn(date) {
+    const special = rangeFor(date, 'special');
+    const vacation = rangeFor(date, 'vacation');
+    return schoolEntriesOn(date).concat(
+      special ? [{ type: '학교', title: special.title }] : [],
+      vacation ? [{ type: '학교', title: vacation.title }] : [],
+      itemsOn(date).map((item) => ({ type: item.category, title: item.title })),
+    );
+  }
+
+  function calendarEntryClass(type) {
+    if (type === '학급') return 'class';
+    if (type === '교과' || type === '학사') return 'subject';
+    if (type === '개인') return 'personal';
+    return 'school';
+  }
+
   function renderCalendar() {
     const base = state.calendarDate;
     const year = base.getFullYear();
@@ -385,6 +403,7 @@
       const schoolEntries = schoolEntriesOn(date);
       const special = rangeFor(date, 'special');
       const vacation = rangeFor(date, 'vacation');
+      const entries = calendarEntriesOn(date);
       if (date === today()) classes.push('today');
       if (date === state.selectedDate) classes.push('selected');
       if (itemsOn(date).length) classes.push('has-item');
@@ -394,25 +413,41 @@
       if (vacation) classes.push('vacation');
       if (weekday === 0) classes.push('sunday');
       if (weekday === 6) classes.push('saturday');
-      const hasMarker = itemsOn(date).length || schoolEntries.length || special;
-      cells += `<button type="button" class="${classes.join(' ')}" data-calendar-date="${date}">${day}${hasMarker ? '<span class="cal-dot"></span>' : ''}</button>`;
+      const previews = entries.slice(0, 2).map((entry) =>
+        `<span class="cal-entry ${calendarEntryClass(entry.type)}">${escapeHtml(entry.title)}</span>`
+      ).join('');
+      const more = entries.length > 2 ? `<span class="cal-more">+${entries.length - 2}개</span>` : '';
+      const label = entries.length ? `${date}: ${entries.map((entry) => entry.title).join(', ')}` : date;
+      cells += `<button type="button" class="${classes.join(' ')}" data-calendar-date="${date}" aria-label="${escapeHtml(label)}"><span class="cal-day-number">${day}</span><span class="cal-entry-list">${previews}${more}</span></button>`;
     }
     $('calendarGrid').innerHTML = headers + cells;
     if (state.selectedDate) renderCalendarDetail(state.selectedDate);
+    else renderMonthAgenda(year, month);
   }
 
   function renderCalendarDetail(date) {
-    const personal = itemsOn(date).map((item) => ({ type: item.category, title: item.title }));
-    const special = rangeFor(date, 'special');
-    const vacation = rangeFor(date, 'vacation');
-    const list = schoolEntriesOn(date).concat(
-      special ? [{ type: '학교', title: special.title }] : [],
-      vacation ? [{ type: '학교', title: vacation.title }] : [],
-      personal,
-    );
+    const list = calendarEntriesOn(date);
     $('calendarDetail').innerHTML = list.length
       ? `<strong>${escapeHtml(dateLabel(date))}</strong><br>${list.map((item) => `· [${escapeHtml(item.type)}] ${escapeHtml(item.title)}`).join('<br>')}`
       : `<strong>${escapeHtml(dateLabel(date))}</strong><br>등록된 일정이 없습니다.`;
+  }
+
+  function renderMonthAgenda(year, month) {
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const rows = [];
+    const seenRanges = new Set();
+    for (let day = 1; day <= lastDay; day += 1) {
+      const date = [year, String(month + 1).padStart(2, '0'), String(day).padStart(2, '0')].join('-');
+      calendarEntriesOn(date).forEach((entry) => {
+        const rangeKey = entry.type === '학교' ? `${entry.type}:${entry.title}` : '';
+        if (rangeKey && seenRanges.has(rangeKey)) return;
+        if (rangeKey) seenRanges.add(rangeKey);
+        rows.push({ date, ...entry });
+      });
+    }
+    $('calendarDetail').innerHTML = rows.length
+      ? `<strong>이번 달 전체 일정</strong><div class="month-agenda">${rows.map((entry) => `<div><time>${escapeHtml(dateLabel(entry.date))}</time><span class="tag ${calendarEntryClass(entry.type)}">${escapeHtml(entry.type)}</span><span>${escapeHtml(entry.title)}</span></div>`).join('')}</div>`
+      : '<strong>이번 달 전체 일정</strong><br>등록된 일정이 없습니다.';
   }
 
   function renderAll() {
@@ -641,9 +676,14 @@
     } catch (error) { showToast(error.message); }
   });
 
-  $('plannerList').addEventListener('click', (event) => {
-    const button = event.target.closest('[data-item-action="edit"]');
-    if (button) openItemEditor(button.dataset.id);
+  $('plannerList').addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-item-action]');
+    if (!button) return;
+    if (button.dataset.itemAction === 'edit') return openItemEditor(button.dataset.id);
+    if (button.dataset.itemAction === 'delete') {
+      try { await removePlannerItem(button.dataset.id); }
+      catch (error) { showToast(error.message); }
+    }
   });
   $('plannerList').addEventListener('change', async (event) => {
     const checkbox = event.target.closest('[data-item-action="toggle"]');
@@ -680,15 +720,16 @@
       await loadAdminData();
     } catch (error) { showToast(error.message); }
   });
-  $('deleteItemBtn').addEventListener('click', async () => {
-    const itemId = $('itemId').value;
+  async function removePlannerItem(itemId) {
     if (!itemId || !window.confirm('이 일정을 삭제할까요?')) return;
-    try {
-      await api('deletePlannerItem', { itemId });
-      closeModal('itemModal');
-      showToast('일정을 삭제했습니다.');
-      await loadAdminData();
-    } catch (error) { showToast(error.message); }
+    await api('deletePlannerItem', { itemId });
+    closeModal('itemModal');
+    showToast('일정을 삭제했습니다.');
+    await loadAdminData();
+  }
+  $('deleteItemBtn').addEventListener('click', async () => {
+    try { await removePlannerItem($('itemId').value); }
+    catch (error) { showToast(error.message); }
   });
 
   $('noticeScope').addEventListener('change', syncTargetVisibility);
