@@ -226,7 +226,7 @@
     <div class="push-row">
       <a id="pushBtn" class="push-btn" target="_blank" rel="noopener">📤 체크한 일정 학급 사이트로 보내기</a>
     </div>
-    <p class="push-hint">🔗 각 일정의 <b>📤 전송</b>을 체크하면, 그 일정만 학생 사이트 <b>‘오늘의 안내’</b>에 <b>[담임]</b> 안내로 표시됩니다. · <b>학교</b> 필터엔 다가오는 2주 학사일정도 함께 떠서 바로 전송할 수 있어요. · 직접 추가한 일정은 ✏️ 수정 · 🗑 삭제 가능(이 브라우저에 저장).</p>
+    <p class="push-hint">🔗 각 일정의 <b>📤 전송</b>을 체크하면, 그 일정만 학생 사이트 <b>‘오늘의 안내’</b>에 <b>[담임]</b> 안내로 표시됩니다. · <b>학교</b> 필터엔 다가오는 2주 학사일정도 함께 떠서 바로 전송할 수 있어요. · 모든 일정은 ✏️ 수정 · 🗑 삭제 가능(학사일정은 ✏️ 누르면 내 일정으로 복사돼 편집, 🗑은 목록에서만 숨김·달력은 유지 / 이 브라우저에 저장).</p>
     <div id="schedList"></div>
   </section>
 
@@ -374,16 +374,25 @@ const EVENT_SEND_KEY = "classPlanner.eventSend.v1";
 function loadEventSend(){ try{ return JSON.parse(localStorage.getItem(EVENT_SEND_KEY)) || {}; }catch(e){ return {}; } }
 function saveEventSend(map){ try{ localStorage.setItem(EVENT_SEND_KEY, JSON.stringify(map)); }catch(e){} }
 
-// 다가오는 2주 학사일정 → '전체 일정'에 표시할 학교 항목으로 변환
+// ── 학사일정 중 '전체 일정' 목록에서 숨긴(삭제/대체) 항목 (달력 원본은 유지) ──
+const EVENT_HIDDEN_KEY = "classPlanner.eventHidden.v1";
+function loadEventHidden(){ try{ return JSON.parse(localStorage.getItem(EVENT_HIDDEN_KEY)) || {}; }catch(e){ return {}; } }
+function saveEventHidden(map){ try{ localStorage.setItem(EVENT_HIDDEN_KEY, JSON.stringify(map)); }catch(e){} }
+function hideEvent(id){ const m=loadEventHidden(); m[id]=true; saveEventHidden(m); }
+
+// 다가오는 2주 학사일정 → '전체 일정'에 표시할 학교 항목으로 변환 (숨긴 항목 제외)
 const SCHOOL_EVENT_DAYS = 14;
 function upcomingSchoolEvents(){
   const today = todayStr();
   const end = shiftDate(today, SCHOOL_EVENT_DAYS - 1);
+  const hidden = loadEventHidden();
   const out = [];
   Object.keys(EVENTS).forEach(date=>{
     if(date >= today && date <= end){
       (EVENTS[date]||[]).forEach((title, i)=>{
-        out.push({ id:`ev:${date}:${i}`, cat:"학교", title, date, note:"", isEvent:true });
+        const id = `ev:${date}:${i}`;
+        if(hidden[id]) return;
+        out.push({ id, cat:"학교", title, date, note:"", isEvent:true });
       });
     }
   });
@@ -689,11 +698,9 @@ function renderSchedule(){
   }
   listEl.innerHTML = items.map(s=>{
     const past = s.date < today;
-    const acts = s.isEvent
-      ? ''   // 학사일정은 여기서 편집/삭제하지 않음(달력 원본 유지)
-      : `<div class="sched-acts">
-        <button class="edit-btn" data-id="${escapeHtml(s.id)}" title="수정">✏️</button>
-        <button class="del-btn" data-id="${escapeHtml(s.id)}" title="삭제">🗑</button>
+    const acts = `<div class="sched-acts">
+        <button class="edit-btn" data-id="${escapeHtml(s.id)}" data-event="${s.isEvent?1:0}" title="${s.isEvent?'내 일정으로 복사해 수정':'수정'}">✏️</button>
+        <button class="del-btn" data-id="${escapeHtml(s.id)}" data-event="${s.isEvent?1:0}" title="${s.isEvent?'목록에서 숨기기(달력은 유지)':'삭제'}">🗑</button>
       </div>`;
     return `<div class="sched-item${past?' past':''}" data-id="${escapeHtml(s.id)}">
       <span class="sched-chip ${CATCLASS[s.cat]||''}">${escapeHtml(s.cat)}${s.isEvent?'·학사':''}</span>
@@ -727,10 +734,20 @@ function renderSchedule(){
   });
   listEl.querySelectorAll('.del-btn').forEach(b=>{
     b.addEventListener('click', ()=>{
-      const it = SCHEDULE.find(x=> x.id === b.dataset.id);
-      if(it && confirm(`“${it.title}” 일정을 삭제할까요?`)){
-        SCHEDULE = SCHEDULE.filter(x=> x.id !== b.dataset.id);
-        saveSchedule(SCHEDULE); renderAll();
+      if(b.dataset.event === '1'){
+        const ev = upcomingSchoolEvents().find(x=> x.id === b.dataset.id);
+        const name = ev ? ev.title : '이 학사일정';
+        if(confirm(`“${name}”을(를) 전체 일정 목록에서 숨길까요?\n(달력에는 그대로 남아요)`)){
+          hideEvent(b.dataset.id);
+          const es = loadEventSend(); if(es[b.dataset.id]){ delete es[b.dataset.id]; saveEventSend(es); }
+          renderAll();
+        }
+      } else {
+        const it = SCHEDULE.find(x=> x.id === b.dataset.id);
+        if(it && confirm(`“${it.title}” 일정을 삭제할까요?`)){
+          SCHEDULE = SCHEDULE.filter(x=> x.id !== b.dataset.id);
+          saveSchedule(SCHEDULE); renderAll();
+        }
       }
     });
   });
@@ -747,7 +764,27 @@ document.getElementById('schedFilter').addEventListener('click', e=>{
 /* ── 일정 추가/수정 모달 ── */
 const modal = document.getElementById('schedModal');
 let editingId = null;
+let replacingEventId = null;   // 학사일정을 편집(내 일정으로 복사)할 때 원본 id
 function openModal(id){
+  replacingEventId = null;
+  const isEvent = !!(id && id.indexOf('ev:') === 0);
+  if(isEvent){
+    // 학사일정 편집 = 내 일정으로 복사해서 수정(저장 시 원본은 목록에서 숨김)
+    const ev = upcomingSchoolEvents().find(x=> x.id === id);
+    replacingEventId = id;
+    editingId = null;
+    const eventSend = loadEventSend();
+    document.getElementById('modalTitle').textContent = '학사일정 편집';
+    document.getElementById('mCat').value  = '학교';
+    document.getElementById('mTitle').value= ev ? ev.title : '';
+    document.getElementById('mDate').value = ev ? ev.date : todayStr();
+    document.getElementById('mNote').value = '';
+    document.getElementById('mSend').checked = ev ? !!eventSend[id] : false;
+    document.getElementById('mDelete').style.display = 'none';
+    modal.classList.add('open');
+    setTimeout(()=> document.getElementById('mTitle').focus(), 40);
+    return;
+  }
   editingId = id || null;
   const it = id ? SCHEDULE.find(x=> x.id === id) : null;
   document.getElementById('modalTitle').textContent = it ? '일정 수정' : '일정 추가';
@@ -760,7 +797,7 @@ function openModal(id){
   modal.classList.add('open');
   setTimeout(()=> document.getElementById('mTitle').focus(), 40);
 }
-function closeModal(){ modal.classList.remove('open'); editingId = null; }
+function closeModal(){ modal.classList.remove('open'); editingId = null; replacingEventId = null; }
 document.getElementById('addBtn').addEventListener('click', ()=> openModal(null));
 document.getElementById('mCancel').addEventListener('click', closeModal);
 modal.addEventListener('click', e=>{ if(e.target === modal) closeModal(); });
@@ -782,6 +819,11 @@ document.getElementById('mSave').addEventListener('click', ()=>{
     if(it) Object.assign(it, data);
   }else{
     SCHEDULE.push({ id:"s-"+Date.now(), ...data });
+    // 학사일정을 편집한 경우: 원본 학사일정은 전체 일정 목록에서 숨김(달력은 유지)
+    if(replacingEventId){
+      hideEvent(replacingEventId);
+      const es = loadEventSend(); if(es[replacingEventId]){ delete es[replacingEventId]; saveEventSend(es); }
+    }
   }
   saveSchedule(SCHEDULE); closeModal(); renderAll();
 });
@@ -801,9 +843,12 @@ document.getElementById('exportBtn').addEventListener('click', ()=>{
   );
 });
 document.getElementById('resetBtn').addEventListener('click', ()=>{
-  if(confirm('이 브라우저에서 편집한 내용을 지우고, 기본(배포된) 일정으로 되돌릴까요?')){
+  if(confirm('이 브라우저에서 편집한 내용을 지우고, 기본(배포된) 일정으로 되돌릴까요?\n(학사일정 전송 체크·숨김·편집도 초기화됩니다)')){
     SCHEDULE = SCHEDULE_SEED.map(s=>({...s}));
-    saveSchedule(SCHEDULE); renderAll();
+    saveSchedule(SCHEDULE);
+    saveEventSend({});
+    saveEventHidden({});
+    renderAll();
   }
 });
 
