@@ -6,6 +6,8 @@
   const AUTH_KEY = 'classPlanner.adminToken.v3';
   const LEGACY_KEY = 'classPlanner.schedule.v2';
   const LEGACY_DONE_KEY = 'classPlanner.legacyImported.v3';
+  const CLAUDE_URL_KEY = 'classPlanner.claudeBridgeUrl.v1';
+  const CLAUDE_ACCESS_KEY = 'classPlanner.claudeBridgeAccessKey.v1';
   const state = {
     token: sessionStorage.getItem(AUTH_KEY) || '',
     plannerItems: [],
@@ -16,6 +18,8 @@
     calendarDate: new Date(),
     selectedDate: '',
     loading: false,
+    claudeMessages: [],
+    claudeDraft: '',
   };
 
   const $ = (id) => document.getElementById(id);
@@ -91,15 +95,109 @@
     $('connectionBanner').classList.add('hidden');
   }
 
+  function setClaudeState(label, type = 'pending') {
+    const badge = $('claudeState');
+    badge.textContent = label;
+    badge.className = `ai-state ${type}`;
+  }
+
+  function normalizeBridgeUrl(value) {
+    const text = String(value || '').trim().replace(/\/+$/, '');
+    if (!text) throw new Error('Claude 브리지 서버 주소를 입력해주세요.');
+    let url;
+    try { url = new URL(text); }
+    catch { throw new Error('Claude 브리지 주소 형식을 확인해주세요.'); }
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(url.hostname))) {
+      throw new Error('배포 서버는 HTTPS 주소를 사용해야 합니다.');
+    }
+    return url.toString().replace(/\/$/, '');
+  }
+
+  function saveBridgeSettings() {
+    const url = normalizeBridgeUrl($('claudeBridgeUrl').value);
+    const key = $('claudeBridgeKey').value.trim();
+    if (key.length < 16) throw new Error('브리지 접속키는 16자 이상으로 입력해주세요.');
+    localStorage.setItem(CLAUDE_URL_KEY, url);
+    sessionStorage.setItem(CLAUDE_ACCESS_KEY, key);
+    return { url, key };
+  }
+
+  async function bridgeRequest(pathname, options = {}) {
+    const { url, key } = saveBridgeSettings();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 150000);
+    try {
+      const response = await fetch(`${url}${pathname}`, {
+        method: options.method || 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Bridge-Key': key },
+        body: options.body ? JSON.stringify(options.body) : undefined,
+        signal: controller.signal,
+      });
+      let result;
+      try { result = await response.json(); }
+      catch { throw new Error(`Claude 브리지 응답을 읽지 못했습니다. (${response.status})`); }
+      if (!response.ok || !result.ok) throw new Error(result.error || `Claude 브리지 오류 (${response.status})`);
+      return result;
+    } catch (error) {
+      if (error?.name === 'AbortError') throw new Error('Claude 응답 시간이 초과되었습니다.');
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  function renderClaudeMessages(thinking = false) {
+    const messages = state.claudeMessages.length ? state.claudeMessages : [{
+      role: 'assistant',
+      content: '전달사항이나 쿨메신저 내용을 붙여넣고 원하는 정리 방법을 말씀해주세요. 결과를 확인한 뒤 알림장에 반영할 수 있습니다.',
+    }];
+    const rows = messages.map((message) => {
+      const assistant = message.role === 'assistant';
+      return `<article class="claude-message ${assistant ? 'assistant' : 'user'}">
+        <div class="message-avatar">${assistant ? 'C' : '나'}</div>
+        <div><strong>${assistant ? 'Claude' : '교사'}</strong><p>${escapeHtml(message.content)}</p></div>
+      </article>`;
+    });
+    if (thinking) rows.push(`<article class="claude-message assistant thinking"><div class="message-avatar">C</div><div><strong>Claude</strong><p class="thinking-dots">내용을 정리하고 있습니다</p></div></article>`);
+    const box = $('claudeMessages');
+    box.innerHTML = rows.join('');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function resetClaudeChat() {
+    state.claudeMessages = [];
+    state.claudeDraft = '';
+    $('claudePrompt').value = '';
+    $('claudeApplyText').value = '';
+    $('claudeDraft').classList.add('hidden');
+    $('claudeApplyResult').classList.add('hidden');
+    renderClaudeMessages();
+  }
+
+  async function ingestText(rawText, button, resultBox, action = 'ingest') {
+    if (!rawText) throw new Error('반영할 내용을 입력해주세요.');
+    const idleLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = '반영 중…';
+    try {
+      const result = await api(action, { rawText });
+      resultBox.className = `result-message${result.warning ? ' warning' : ''}`;
+      resultBox.textContent = `개인 알림장 ${result.plannerItems.length}건, 공지 검토함 ${result.notices.length}건을 만들었습니다.${result.warning ? ` ${result.warning}` : ''}`;
+      await loadAdminData();
+      if (result.notices.length) $('reviewPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return result;
+    } finally {
+      button.disabled = false;
+      button.textContent = idleLabel;
+    }
+  }
+
   async function loadAdminData() {
     const data = await api('adminLoad');
     state.plannerItems = Array.isArray(data.plannerItems) ? data.plannerItems : [];
     state.notices = Array.isArray(data.notices) ? data.notices : [];
     state.students = Array.isArray(data.students) ? data.students : [];
     $('updatedAt').textContent = `마지막 동기화 ${new Date(data.updatedAt || Date.now()).toLocaleString('ko-KR')}`;
-    $('aiState').textContent = data.aiEnabled ? 'AI 정리 사용 중' : '기본 정리 · API 키 미설정';
-    $('aiState').style.background = data.aiEnabled ? '#eef9f4' : '#fff6e8';
-    $('aiState').style.color = data.aiEnabled ? '#16845b' : '#8a5316';
     clearConnectionError();
     renderAll();
     detectLegacySchedule();
@@ -407,10 +505,96 @@
 
   document.querySelectorAll('.command-chip').forEach((button) => {
     button.addEventListener('click', () => {
+      if (button.dataset.claudePrompt !== undefined) {
+        const current = $('claudePrompt').value.trim();
+        $('claudePrompt').value = `${button.dataset.claudePrompt}${current}`;
+        $('claudePrompt').focus();
+        return;
+      }
       const current = $('rawInput').value.trim();
       $('rawInput').value = `${button.dataset.command}\n${current.replace(/^\/공지사항\s*\[[^\]]+\]\s*/i, '')}`.trimEnd();
       $('rawInput').focus();
     });
+  });
+
+  $('claudeSettingsBtn').addEventListener('click', () => {
+    $('claudeSettings').classList.toggle('hidden');
+    if (!$('claudeSettings').classList.contains('hidden')) $('claudeBridgeUrl').focus();
+  });
+
+  $('testClaudeBtn').addEventListener('click', async () => {
+    const button = $('testClaudeBtn');
+    const message = $('claudeSettingsMessage');
+    button.disabled = true;
+    button.textContent = '확인 중…';
+    message.textContent = '';
+    try {
+      const result = await bridgeRequest('/api/auth-check');
+      message.style.color = '#16845b';
+      message.textContent = `Claude 연결 정상 · ${result.model || '기본 모델'}`;
+      setClaudeState('Claude 연결됨', 'connected');
+    } catch (error) {
+      message.style.color = '#c9384d';
+      message.textContent = error.message;
+      setClaudeState('연결 오류', 'error');
+    } finally {
+      button.disabled = false;
+      button.textContent = '연결 확인';
+    }
+  });
+
+  $('newClaudeChatBtn').addEventListener('click', resetClaudeChat);
+
+  $('claudeForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const prompt = $('claudePrompt').value.trim();
+    if (!prompt) return showToast('Claude에게 보낼 내용을 입력해주세요.');
+    const button = $('claudeSendBtn');
+    const history = state.claudeMessages.slice(-8);
+    state.claudeMessages.push({ role: 'user', content: prompt });
+    $('claudePrompt').value = '';
+    button.disabled = true;
+    button.textContent = 'Claude가 정리 중…';
+    renderClaudeMessages(true);
+    try {
+      const result = await bridgeRequest('/api/claude', { body: { prompt, messages: history } });
+      state.claudeMessages.push({ role: 'assistant', content: result.reply || '요청을 처리했습니다.' });
+      setClaudeState('Claude 연결됨', 'connected');
+      if (result.canApply && result.applyText) {
+        state.claudeDraft = result.applyText;
+        $('claudeApplyText').value = result.applyText;
+        $('claudeDraft').classList.remove('hidden');
+        $('claudeApplyResult').classList.add('hidden');
+      }
+    } catch (error) {
+      state.claudeMessages.push({ role: 'assistant', content: `요청을 처리하지 못했습니다. ${error.message}` });
+      setClaudeState('연결 오류', 'error');
+      if (/주소|접속키|연결|OAuth|CLAUDE_CODE/.test(error.message)) $('claudeSettings').classList.remove('hidden');
+    } finally {
+      renderClaudeMessages();
+      button.disabled = false;
+      button.textContent = 'Claude에게 보내기';
+    }
+  });
+
+  $('discardClaudeDraftBtn').addEventListener('click', () => {
+    state.claudeDraft = '';
+    $('claudeApplyText').value = '';
+    $('claudeDraft').classList.add('hidden');
+  });
+
+  $('applyClaudeDraftBtn').addEventListener('click', async () => {
+    const button = $('applyClaudeDraftBtn');
+    const resultBox = $('claudeApplyResult');
+    resultBox.classList.add('hidden');
+    try {
+      await ingestText($('claudeApplyText').value.trim(), button, resultBox, 'ingestPrepared');
+      state.claudeDraft = '';
+      showToast('Claude 정리 내용을 개인 알림장에 반영했습니다.');
+    } catch (error) {
+      resultBox.className = 'result-message warning';
+      resultBox.textContent = error.message;
+    }
   });
 
   $('ingestForm').addEventListener('submit', async (event) => {
@@ -418,22 +602,13 @@
     const button = $('ingestBtn');
     const rawText = $('rawInput').value.trim();
     if (!rawText) return showToast('정리할 내용을 입력해주세요.');
-    button.disabled = true;
-    button.textContent = '정리 중…';
     const resultBox = $('ingestResult');
     try {
-      const result = await api('ingest', { rawText });
+      await ingestText(rawText, button, resultBox);
       $('rawInput').value = '';
-      resultBox.className = `result-message${result.warning ? ' warning' : ''}`;
-      resultBox.textContent = `개인 알림장 ${result.plannerItems.length}건, 공지 검토함 ${result.notices.length}건을 만들었습니다.${result.warning ? ` ${result.warning}` : ''}`;
-      await loadAdminData();
-      if (result.notices.length) $('reviewPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
       resultBox.className = 'result-message warning';
       resultBox.textContent = error.message;
-    } finally {
-      button.disabled = false;
-      button.textContent = '정리해서 반영';
     }
   });
 
@@ -559,6 +734,10 @@
   $('nextMonth').addEventListener('click', () => { state.calendarDate.setMonth(state.calendarDate.getMonth() + 1); state.selectedDate = ''; renderCalendar(); });
   $('todayMonth').addEventListener('click', () => { state.calendarDate = new Date(); state.selectedDate = today(); renderCalendar(); });
 
+  $('claudeBridgeUrl').value = localStorage.getItem(CLAUDE_URL_KEY) || CONFIG.claudeBridgeUrl || '';
+  $('claudeBridgeKey').value = sessionStorage.getItem(CLAUDE_ACCESS_KEY) || '';
+  if ($('claudeBridgeUrl').value && $('claudeBridgeKey').value) setClaudeState('연결 확인 필요', 'pending');
+  renderClaudeMessages();
   renderCalendar();
   if (state.token) unlock(state.token);
   else setTimeout(() => $('tokenInput').focus(), 30);

@@ -1,0 +1,17 @@
+{
+  "name": "class-planner-claude-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Environment-variable authenticated Claude Code bridge for the class planner",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/server.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.233"
+  }
+}

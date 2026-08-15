@@ -1,14 +1,42 @@
 # 개인 알림장 · 학급 알림장 통합 관리자
 
-교사용 개인 알림장입니다. 긴 전달사항을 명령어와 함께 입력하면 Google Sheets에 개인 일정과 학급 공지 초안을 만들고, 관리자가 확인한 공지만 학생용 학급 알림장에 게시합니다.
+교사용 개인 알림장입니다. Claude Code 화면에 전달사항과 요청을 입력하고, Claude가 정리한 결과를 확인한 뒤 Google Sheets에 개인 일정과 학급 공지 초안을 만듭니다. 관리자가 확인한 공지만 학생용 학급 알림장에 게시합니다.
 
 ## 핵심 흐름
 
-1. `/공지사항 [...]` 형식으로 내용을 입력합니다.
-2. Apps Script가 내용을 정리해 `앱_개인알림장`에 저장합니다.
-3. `[학급]`과 `[학생개별: 이름]`은 `앱_공지사항`에 `검토대기` 초안도 만듭니다.
-4. 관리자 화면에서 수정한 뒤 `게시하기`를 누릅니다.
-5. 학생 사이트는 `게시됨` 상태의 전체 공지와 본인 개별 공지만 읽습니다.
+1. Claude 요청 화면에 전달사항과 원하는 정리 방법을 입력합니다.
+2. Claude가 만든 `/공지사항 [...]` 결과를 화면에서 확인하고 필요하면 수정합니다.
+3. `개인 알림장에 반영`을 누르면 Apps Script가 `앱_개인알림장`에 저장합니다.
+4. `[학급]`과 `[학생개별: 이름]`은 `앱_공지사항`에 `검토대기` 초안도 만듭니다.
+5. 관리자 화면에서 수정한 뒤 `게시하기`를 누릅니다.
+6. 학생 사이트는 `게시됨` 상태의 전체 공지와 본인 개별 공지만 읽습니다.
+
+Claude가 이미 정리한 내용은 `ingestPrepared` 작업으로 저장하므로 Apps Script의 OpenAI 설정과 무관하게 다시 AI 분석하지 않습니다. Claude 연결이 없을 때는 접힌 `Claude 없이 명령어를 직접 반영하기` 입력란을 사용할 수 있습니다.
+
+## Claude Code 브리지
+
+GitHub Pages는 환경변수나 Claude Code 프로세스를 실행할 수 없으므로 `server/`를 Docker 서버로 별도 배포합니다.
+
+```text
+개인 알림장(GitHub Pages)
+  → Claude 브리지(Node/Docker)
+  → Claude Code -p
+  → CLAUDE_CODE_OAUTH_TOKEN 자동 인증
+  → 정리 결과 확인
+  → Apps Script / Google Sheets 반영
+```
+
+필수 서버 환경변수:
+
+```env
+CLAUDE_CODE_OAUTH_TOKEN=claude_setup_token_값
+CLAUDE_BRIDGE_ACCESS_KEY=20자_이상의_별도_접속키
+ALLOWED_ORIGINS=https://morningcandy.github.io
+```
+
+토큰은 현재 로그인 세션의 내부 파일에서 꺼내지 않습니다. Claude Code에서 `claude setup-token`을 실행해 자동화용 장기 토큰을 새로 만든 뒤 배포 서비스의 Secret에 직접 입력합니다. 자세한 실행 방법은 `server/README.md`를 참고하세요.
+
+`main`에 `server/` 변경이 올라오면 GitHub Actions가 `ghcr.io/morningcandy/class-planner-claude-bridge:latest` 컨테이너 이미지를 만듭니다. 실제 서버에는 이 이미지를 배포하고 위 환경변수를 등록합니다.
 
 ## 명령어
 
@@ -37,7 +65,7 @@
 2. 저장소의 `apps-script.gs` 내용을 Apps Script 편집기에 붙여넣습니다.
 3. `setupClassPlanner`를 한 번 실행합니다. 기존 탭은 유지되고 `앱_...` 탭이 추가됩니다.
 4. 시트 메뉴 `학급 플래너 → 관리자 토큰 설정`을 실행합니다.
-5. 선택 사항으로 `OpenAI API 키 설정`을 실행합니다. 키가 없으면 명령어와 기본 날짜 규칙으로 저장한 후 관리자가 직접 다듬을 수 있습니다.
+5. 선택 사항으로 `OpenAI API 키 설정`을 실행합니다. 이 설정은 Claude를 거치지 않고 직접 명령어를 입력할 때만 사용합니다.
 6. `앱_학생목록`에 학생 정보를 입력합니다.
 7. Apps Script를 웹앱으로 배포합니다.
    - 실행 사용자: 나
@@ -60,3 +88,5 @@
 ## 비밀값
 
 관리자 토큰과 OpenAI API 키는 GitHub나 시트 셀에 넣지 않습니다. Apps Script의 Script Properties에만 저장됩니다. 관리자 토큰은 현재 브라우저 탭의 `sessionStorage`에 보관되어 브라우저를 닫으면 사라집니다.
+
+Claude OAuth 토큰도 GitHub, `config.js`, 브라우저에 넣지 않습니다. 배포 서버의 `CLAUDE_CODE_OAUTH_TOKEN` Secret으로만 설정합니다. 화면에 입력하는 `CLAUDE_BRIDGE_ACCESS_KEY`는 OAuth 토큰과 다른 값이며 현재 브라우저 탭에만 저장됩니다.

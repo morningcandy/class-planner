@@ -112,6 +112,42 @@ textarea { resize: vertical; line-height: 1.65; }
 .command-row { margin-top: 10px; }
 .command-chip { background: #f3f5fa; color: #536078; font-size: 12px; }
 
+.claude-card { overflow: hidden; }
+.claude-heading-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: wrap; }
+.button.small { padding: 7px 10px; font-size: 11px; }
+.ai-state.pending { background: #fff6e8; color: #8a5316; }
+.ai-state.connected { background: #eaf8f2; color: var(--success); }
+.ai-state.error { background: #fff0f2; color: var(--danger); }
+.claude-settings { margin: -3px 0 15px; padding: 16px; border: 1px solid #ced8ff; border-radius: 14px; background: #f6f8ff; }
+.field-pair { display: grid; grid-template-columns: 1.2fr .8fr; gap: 12px; }
+.field-pair label { display: grid; gap: 7px; color: #4d5871; font-size: 12px; font-weight: 800; }
+.settings-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 11px; }
+.settings-footer p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.form-message.compact { min-height: 0; margin: 8px 0 0; }
+.claude-chat { display: grid; gap: 12px; max-height: 420px; min-height: 110px; margin-bottom: 13px; padding: 15px; overflow-y: auto; border: 1px solid var(--line); border-radius: 15px; background: #f8f9fd; }
+.claude-message { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; max-width: 88%; }
+.claude-message.user { margin-left: auto; grid-template-columns: minmax(0, 1fr) 32px; }
+.claude-message.user .message-avatar { grid-column: 2; }
+.claude-message.user > div:last-child { grid-column: 1; grid-row: 1; padding: 11px 13px; border-radius: 14px 4px 14px 14px; background: var(--primary); color: #fff; }
+.claude-message.assistant > div:last-child { padding: 11px 13px; border: 1px solid var(--line); border-radius: 4px 14px 14px 14px; background: #fff; }
+.message-avatar { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: #1d2b55; color: #fff; font-size: 12px; font-weight: 900; }
+.claude-message.user .message-avatar { background: var(--primary); }
+.claude-message strong { display: block; margin-bottom: 5px; font-size: 11px; }
+.claude-message p { margin: 0; font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.claude-message.thinking p { color: var(--muted); }
+.thinking-dots::after { content: '…'; animation: blink 1.1s infinite; }
+@keyframes blink { 0%, 30% { opacity: .25; } 60%, 100% { opacity: 1; } }
+.claude-form textarea { min-height: 125px; }
+.claude-draft { margin-top: 15px; padding: 16px; border: 1px solid #b9c9ff; border-radius: 15px; background: #f3f6ff; }
+.draft-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
+.draft-heading h3 { margin: 3px 0 0; font-size: 15px; }
+.draft-heading > span { padding: 5px 8px; border-radius: 99px; background: #fff6e8; color: #8a5316; font-size: 10px; font-weight: 800; }
+.claude-draft textarea { background: #fff; }
+.draft-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.direct-entry { margin-top: 17px; padding-top: 13px; border-top: 1px solid var(--line); }
+.direct-entry summary { width: fit-content; color: var(--muted); font-size: 11px; font-weight: 800; cursor: pointer; }
+.direct-entry form { margin-top: 12px; }
+
 .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .summary-card { min-height: 108px; padding: 18px; border-radius: 18px; background: #fff; border: 1px solid var(--line); display: flex; flex-direction: column; justify-content: space-between; }
 .summary-card span { color: var(--muted); font-size: 12px; font-weight: 700; }
@@ -209,6 +245,11 @@ textarea { resize: vertical; line-height: 1.65; }
   .summary-card { min-height: 92px; }
   .section-heading { flex-direction: column; }
   .section-heading.compact { flex-direction: row; }
+  .claude-heading-actions { justify-content: flex-start; }
+  .field-pair { grid-template-columns: 1fr; }
+  .settings-footer { align-items: flex-start; flex-direction: column; }
+  .claude-message { max-width: 96%; }
+  .draft-heading { flex-direction: column; }
   .segmented { width: 100%; overflow-x: auto; }
   .segmented button { flex: 1; white-space: nowrap; }
   .planner-row { grid-template-columns: auto minmax(0, 1fr); }

@@ -129,6 +129,7 @@ function doPost(e) {
     switch (action) {
       case 'adminLoad': return json_(getAdminData_());
       case 'ingest': return json_(ingest_(body.rawText));
+      case 'ingestPrepared': return json_(ingest_(body.rawText, true));
       case 'importLegacyPlanner': return json_(importLegacyPlanner_(body.items || []));
       case 'upsertPlannerItem': return json_(upsertPlannerItem_(body.item || {}));
       case 'setPlannerStatus': return json_(setPlannerStatus_(body.itemId, body.status));
@@ -165,7 +166,7 @@ function getAdminData_() {
   return result;
 }
 
-function ingest_(rawText) {
+function ingest_(rawText, usePreparedText) {
   rawText = String(rawText || '').trim();
   if (!rawText) throw new Error('정리할 내용을 입력해주세요.');
 
@@ -174,7 +175,7 @@ function ingest_(rawText) {
   let analysis;
   let warning = '';
   try {
-    analysis = analyzeWithOpenAI_(command);
+    analysis = usePreparedText ? fallbackAnalysis_(command) : analyzeWithOpenAI_(command);
   } catch (error) {
     analysis = fallbackAnalysis_(command);
     warning = 'AI 정리를 사용하지 못해 기본 규칙으로 등록했습니다: ' + publicError_(error);
