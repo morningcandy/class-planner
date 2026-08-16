@@ -19,6 +19,7 @@ const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 10;
 const PROMPT_VERSION = 3;
+const BUILD_REVISION = 'structured-items-files-v3';
 
 const RESPONSE_SCHEMA = JSON.stringify({
   type: 'object',
@@ -303,6 +304,7 @@ function createServer(options = {}) {
         accessKeyConfigured: !!process.env.CLAUDE_BRIDGE_ACCESS_KEY,
         model: process.env.CLAUDE_MODEL || 'sonnet',
         promptVersion: PROMPT_VERSION,
+        buildRevision: BUILD_REVISION,
       }, origin);
     }
     if (request.method !== 'POST' || (url.pathname !== '/api/claude' && url.pathname !== '/api/auth-check')) {

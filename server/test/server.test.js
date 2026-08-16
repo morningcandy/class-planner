@@ -30,6 +30,7 @@ test('health only reports whether secrets are configured', async () => {
     assert.equal(response.status, 200);
     assert.equal(body.oauthConfigured, true);
     assert.equal(body.promptVersion, 3);
+    assert.equal(body.buildRevision, 'structured-items-files-v3');
     assert.equal(JSON.stringify(body).includes('test-oauth-value'), false);
   });
 });
