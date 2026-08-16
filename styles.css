@@ -197,6 +197,10 @@ textarea { resize: vertical; line-height: 1.65; }
 .row-actions button:disabled { cursor: not-allowed; opacity: .38; }
 .row-actions .order-button { background: #f5f7fb; }
 .order-number { align-self: center; color: var(--muted); font-size: 10px; font-weight: 800; }
+.notice-order-status { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 700; }
+.notice-order-status.pending, .notice-order-status.saving { color: var(--warning); }
+.notice-order-status.saved { color: var(--success); }
+.notice-order-status.error { color: var(--danger); }
 .row-actions .publish { border-color: var(--primary); background: var(--primary); color: #fff; }
 .row-actions .hold { color: var(--warning); }
 .row-actions .danger { border-color: #f2c7cd; color: var(--danger); }

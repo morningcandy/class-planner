@@ -19,6 +19,8 @@
     selectedDate: '',
     loading: false,
     noticeOrderSaving: false,
+    noticeOrderPending: null,
+    noticeOrderTimer: null,
     claudeMessages: [],
     claudeDraft: '',
     claudeFiles: [],
@@ -337,8 +339,8 @@
           <span class="spacer"></span>
           <div class="row-actions">
             <span class="order-number" aria-label="현재 순서">${index + 1}번째</span>
-            <button class="order-button" data-notice-action="move-up" data-id="${escapeHtml(notice.notice_id)}" ${index === 0 || state.noticeOrderSaving ? 'disabled' : ''} aria-label="${escapeHtml(notice.title)} 위로 이동">↑ 위로</button>
-            <button class="order-button" data-notice-action="move-down" data-id="${escapeHtml(notice.notice_id)}" ${index === total - 1 || state.noticeOrderSaving ? 'disabled' : ''} aria-label="${escapeHtml(notice.title)} 아래로 이동">↓ 아래로</button>
+            <button class="order-button" data-notice-action="move-up" data-id="${escapeHtml(notice.notice_id)}" ${index === 0 ? 'disabled' : ''} aria-label="${escapeHtml(notice.title)} 위로 이동">↑ 위로</button>
+            <button class="order-button" data-notice-action="move-down" data-id="${escapeHtml(notice.notice_id)}" ${index === total - 1 ? 'disabled' : ''} aria-label="${escapeHtml(notice.title)} 아래로 이동">↓ 아래로</button>
             <button data-notice-action="edit" data-id="${escapeHtml(notice.notice_id)}">수정</button>
             ${statusActions}
           </div>
@@ -353,27 +355,55 @@
       : `<div class="empty-state">${escapeHtml(state.noticeStatus)} 상태의 공지가 없습니다.</div>`;
   }
 
-  async function moveNotice(noticeId, direction) {
-    if (state.noticeOrderSaving) return;
+  function setNoticeOrderStatus(message, tone = '') {
+    const status = $('noticeOrderStatus');
+    status.textContent = message;
+    status.className = `notice-order-status ${tone}`.trim();
+  }
+
+  function queueNoticeOrderSave(noticeIds) {
+    state.noticeOrderPending = noticeIds.slice();
+    if (state.noticeOrderTimer) clearTimeout(state.noticeOrderTimer);
+    setNoticeOrderStatus('변경한 순서를 저장할 예정입니다…', 'pending');
+    state.noticeOrderTimer = setTimeout(flushNoticeOrder, 650);
+  }
+
+  async function flushNoticeOrder() {
+    state.noticeOrderTimer = null;
+    if (state.noticeOrderSaving || !state.noticeOrderPending) return;
+    const noticeIds = state.noticeOrderPending;
+    state.noticeOrderPending = null;
+    state.noticeOrderSaving = true;
+    setNoticeOrderStatus('Google Sheets에 순서를 저장하는 중입니다…', 'saving');
+    try {
+      await api('reorderNotices', { noticeIds });
+      if (!state.noticeOrderPending) {
+        setNoticeOrderStatus('순서가 저장되었습니다.', 'saved');
+        showToast('공지 순서를 저장했습니다. 게시 후 학생 화면에도 같은 순서로 표시됩니다.');
+      }
+    } catch (error) {
+      state.noticeOrderPending = null;
+      setNoticeOrderStatus('순서 저장에 실패했습니다. 다시 시도해주세요.', 'error');
+      showToast(error.message);
+      await loadAdminData().catch(() => {});
+    } finally {
+      state.noticeOrderSaving = false;
+      if (state.noticeOrderPending) {
+        setNoticeOrderStatus('추가 변경사항을 이어서 저장합니다…', 'pending');
+        state.noticeOrderTimer = setTimeout(flushNoticeOrder, 0);
+      }
+    }
+  }
+
+  function moveNotice(noticeId, direction) {
     const list = visibleNotices();
     const from = list.findIndex((notice) => String(notice.notice_id) === String(noticeId));
     const to = from + direction;
     if (from < 0 || to < 0 || to >= list.length) return;
     [list[from], list[to]] = [list[to], list[from]];
     list.forEach((notice, index) => { notice.sort_order = (index + 1) * 10; });
-    state.noticeOrderSaving = true;
     renderNotices();
-    try {
-      await api('reorderNotices', { noticeIds: list.map((notice) => notice.notice_id) });
-      await loadAdminData();
-      showToast('공지 순서를 저장했습니다. 게시 후 학생 화면에도 같은 순서로 표시됩니다.');
-    } catch (error) {
-      await loadAdminData().catch(() => {});
-      throw error;
-    } finally {
-      state.noticeOrderSaving = false;
-      renderNotices();
-    }
+    queueNoticeOrderSave(list.map((notice) => notice.notice_id));
   }
 
   function plannerCard(item) {
@@ -759,8 +789,8 @@
     const { noticeAction, id } = button.dataset;
     try {
       if (noticeAction === 'edit') return openNoticeEditor(id);
-      if (noticeAction === 'move-up') return await moveNotice(id, -1);
-      if (noticeAction === 'move-down') return await moveNotice(id, 1);
+      if (noticeAction === 'move-up') return moveNotice(id, -1);
+      if (noticeAction === 'move-down') return moveNotice(id, 1);
       if (noticeAction === 'publish') await changeNoticeStatus(id, '게시됨');
       if (noticeAction === 'hold') await changeNoticeStatus(id, '보류');
       if (noticeAction === 'close') await changeNoticeStatus(id, '종료됨');
