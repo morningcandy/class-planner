@@ -40,8 +40,8 @@
 | 개인 알림장 | `https://morningcandy.github.io/class-planner/` | 교사 입력·일정·공지 검토 | 배포됨, HTTP 200 확인 |
 | 학급 알림장 | `https://morningcandy.github.io/class-notice/` | 학생 공지·할 일 표시 | 배포됨, HTTP 200 확인 |
 | 학급 관리자 | `https://morningcandy.github.io/class-notice/admin/` | 공지 수정·게시·보류·종료 | 배포됨, HTTP 200 확인 |
-| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | promptVersion 5 코드 준비·Render 재배포 필요 |
-| Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 8, 삭제 검증 완료 |
+| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 5 배포 확인 |
+| Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 9, 공지 종료일 검증 완료 |
 | Google Sheets | 교사 개인 스프레드시트 | 모든 업무·공지·응답의 원본 | 앱 전용 탭 6개 초기화 완료 |
 
 ## 4. 데이터 흐름
@@ -176,6 +176,7 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [x] 중복 개인코드는 학생 인증과 응답 기록에서 안전하게 거부
 - [x] Claude CLI 프롬프트를 표준입력으로 명시 전달해 stdin 대기 경고 제거
 - [x] Apps Script 지연을 고려한 90초 대기, 삭제 직후 화면 반영, 멱등 삭제 응답 구현
+- [x] 학급의 현재 안내 통합 목록과 종료일 다음 날 지난 공지 자동 이동
 
 ## 남은 개발 항목
 
@@ -187,6 +188,19 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [ ] **P2** Google Sheets 백업 주기와 Render·Apps Script 장애 대응 절차를 정한다.
 
 ## 최근 작업
+
+### 2026-08-16 — 학급 안내 통합 목록 및 종료일 자동 보관
+
+- 개발 내용
+  - 학급 안내의 요일별 날짜 이동 UI 제거
+  - 종료되지 않은 안내를 한 목록에 표시하고 종료일 다음 날부터 지난 공지로 자동 분류
+  - 실제 공지 데이터와 확인 기록은 삭제하지 않고 보존
+  - Apps Script 학생 API에 공지 `dueDate`, `endsAt` 추가 및 버전 9 배포
+- 검증
+  - 날짜 경계와 대체 종료일 규칙 테스트 3개 통과
+  - 운영 API 종료일 반환과 현재/지난 분류용 점검 공지 검증 후 정리
+- 가장 명확한 다음 단계
+  - 실제 학급 공지를 게시해 학생 화면에서 통합 안내 목록을 확인한다.
 
 ### 2026-08-16 — Claude 종료 코드 1 진단 및 첨부파일 처리 턴 보강
 

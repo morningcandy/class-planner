@@ -578,6 +578,8 @@ function getStudentFeed_(code) {
       publicNotices.push(Object.assign({}, base, {
         content: String(notice.content || ''),
         date: String(notice.notice_date || today_()),
+        dueDate: String(notice.due_date || ''),
+        endsAt: String(notice.ends_at || notice.due_date || notice.notice_date || today_()),
         urgent: isTrue_(notice.urgent),
       }));
     }
