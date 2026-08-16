@@ -58,7 +58,7 @@
   async function api(action, payload = {}) {
     if (!API_URL) throw new Error('config.js에 Apps Script 주소를 입력해주세요.');
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
+    const timeout = setTimeout(() => controller.abort(), 90000);
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
@@ -764,10 +764,13 @@
   });
   async function removePlannerItem(itemId) {
     if (!itemId || !window.confirm('이 일정을 삭제할까요?')) return;
-    await api('deletePlannerItem', { itemId });
+    const result = await api('deletePlannerItem', { itemId });
+    state.plannerItems = state.plannerItems.filter((item) => String(item.item_id) !== String(itemId));
+    renderAll();
     closeModal('itemModal');
-    showToast('일정을 삭제했습니다.');
-    await loadAdminData();
+    showToast(result.deleted === false ? '이미 삭제된 일정입니다.' : '일정을 삭제했습니다.');
+    try { await loadAdminData(); }
+    catch (error) { showConnectionError(error); }
   }
   $('deleteItemBtn').addEventListener('click', async () => {
     try { await removePlannerItem($('itemId').value); }

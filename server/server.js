@@ -18,8 +18,8 @@ const MAX_HISTORY_CHARS = 24000;
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 10;
-const PROMPT_VERSION = 3;
-const BUILD_REVISION = 'structured-items-files-v3';
+const PROMPT_VERSION = 4;
+const BUILD_REVISION = 'stdin-delete-reliability-v4';
 
 const RESPONSE_SCHEMA = JSON.stringify({
   type: 'object',
@@ -215,7 +215,7 @@ async function prepareAttachments(tempDir, files) {
   return `\n\n첨부파일이 있습니다. Read 도구로 아래 파일만 읽고 교사의 요청과 함께 정리하세요.\n${references.map((value) => `- ${value}`).join('\n')}`;
 }
 
-async function runClaude(prompt, files = []) {
+async function runClaude(prompt, files = [], options = {}) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'class-planner-claude-'));
   let attachmentPrompt = '';
   try { attachmentPrompt = await prepareAttachments(tempDir, files); }
@@ -236,9 +236,11 @@ async function runClaude(prompt, files = []) {
       '--safe-mode', '--permission-mode', 'dontAsk', '--tools', attachmentPrompt ? 'Read' : '',
       ...(attachmentPrompt ? ['--allowedTools', 'Read(./**)'] : []),
       '--disallowedTools', 'mcp__*',
-      '--disable-slash-commands', '--system-prompt', SYSTEM_PROMPT, prompt + attachmentPrompt,
+      '--disable-slash-commands', '--system-prompt', SYSTEM_PROMPT,
     ];
-    const child = spawn(executable, args, { cwd: tempDir, env: childEnv, windowsHide: true });
+    const userInput = prompt + attachmentPrompt;
+    const spawnProcess = options.spawnProcess || spawn;
+    const child = spawnProcess(executable, args, { cwd: tempDir, env: childEnv, windowsHide: true });
     const stdout = [];
     const stderr = [];
     let outputSize = 0;
@@ -267,6 +269,7 @@ async function runClaude(prompt, files = []) {
     child.stderr.on('data', (chunk) => {
       if (Buffer.concat(stderr).length < 12000) stderr.push(chunk);
     });
+    child.stdin.on('error', (error) => finish(new Error(`Claude 입력을 전달하지 못했습니다: ${error.message}`)));
     child.on('error', (error) => finish(new Error(`Claude Code를 실행하지 못했습니다: ${error.message}`)));
     child.on('close', (code) => {
       if (settled) return;
@@ -277,6 +280,7 @@ async function runClaude(prompt, files = []) {
       try { finish(null, parseClaudeOutput(Buffer.concat(stdout).toString('utf8'))); }
       catch (error) { finish(error); }
     });
+    child.stdin.end(userInput);
   });
 }
 
@@ -353,4 +357,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createServer, buildPrompt, normalizeMessages, parseClaudeOutput, safeEqual, prepareAttachments, SYSTEM_PROMPT };
+module.exports = { createServer, buildPrompt, normalizeMessages, parseClaudeOutput, safeEqual, prepareAttachments, runClaude, SYSTEM_PROMPT };

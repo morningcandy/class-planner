@@ -40,8 +40,8 @@
 | 개인 알림장 | `https://morningcandy.github.io/class-planner/` | 교사 입력·일정·공지 검토 | 배포됨, HTTP 200 확인 |
 | 학급 알림장 | `https://morningcandy.github.io/class-notice/` | 학생 공지·할 일 표시 | 배포됨, HTTP 200 확인 |
 | 학급 관리자 | `https://morningcandy.github.io/class-notice/admin/` | 공지 수정·게시·보류·종료 | 배포됨, HTTP 200 확인 |
-| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 3·buildRevision 검증 완료 |
-| Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 7, health 확인 완료 |
+| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | promptVersion 4 코드 준비·Render 재배포 필요 |
+| Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 8, 삭제 검증 완료 |
 | Google Sheets | 교사 개인 스프레드시트 | 모든 업무·공지·응답의 원본 | 앱 전용 탭 6개 초기화 완료 |
 
 ## 4. 데이터 흐름
@@ -174,6 +174,8 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [x] Render 운영 서버에 구조화 분리·파일 첨부 promptVersion 3 배포
 - [x] 기존 `명단(번호·이름·코드)` 28명을 `앱_학생목록`으로 자동 이전
 - [x] 중복 개인코드는 학생 인증과 응답 기록에서 안전하게 거부
+- [x] Claude CLI 프롬프트를 표준입력으로 명시 전달해 stdin 대기 경고 제거
+- [x] Apps Script 지연을 고려한 90초 대기, 삭제 직후 화면 반영, 멱등 삭제 응답 구현
 
 ## 남은 개발 항목
 
@@ -185,6 +187,25 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [ ] **P2** Google Sheets 백업 주기와 Render·Apps Script 장애 대응 절차를 정한다.
 
 ## 최근 작업
+
+### 2026-08-16 — Claude stdin 경고 및 개인 일정 삭제 신뢰성 수정
+
+- 확인한 원인
+  - Claude 브리지가 사용자 프롬프트를 명령행 인자로만 넘겨 비대화형 CLI가 표준입력을 기다리며 3초 경고를 냄
+  - 개인 알림장 브라우저가 Apps Script 요청을 25초에 중단해 서버 삭제가 끝나도 화면을 다시 불러오지 못할 수 있었음
+- 개발 내용
+  - 사용자 프롬프트와 첨부파일 안내를 Claude 프로세스의 stdin으로 명시 전달
+  - 프롬프트를 CLI 인자에서 제거해 길이·인용부호 문제도 함께 차단
+  - Apps Script 요청 제한을 90초로 늘리고 삭제 성공 직후 로컬 화면에서 항목 제거
+  - 삭제 후 재동기화 실패는 삭제를 되돌리지 않고 연결 경고로 표시
+  - Apps Script 삭제가 `deleted: true|false`를 반환해 재시도에 안전하도록 변경
+- 검증
+  - stdin 전달 회귀 테스트를 포함한 서버 테스트 10개 통과
+  - Apps Script 버전 8 운영 배포
+  - 점검 일정 생성 9.4초, 삭제 8초, `deleted: true` 확인
+  - 삭제 후 재조회에서 항목 없음, 같은 ID 재삭제는 `deleted: false` 확인
+- 가장 명확한 다음 단계
+  - Render에 promptVersion 4를 배포한 후 개인 알림장에서 실제 Claude 요청을 다시 보낸다.
 
 ### 2026-08-16 — Render 구조화 분리·파일 첨부 운영 배포 완료
 

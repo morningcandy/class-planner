@@ -5,8 +5,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { EventEmitter } = require('node:events');
+const { PassThrough, Writable } = require('node:stream');
 const ExcelJS = require('exceljs');
-const { createServer, normalizeMessages, parseClaudeOutput, prepareAttachments, SYSTEM_PROMPT } = require('../server');
+const { createServer, normalizeMessages, parseClaudeOutput, prepareAttachments, runClaude, SYSTEM_PROMPT } = require('../server');
 
 async function withServer(run) {
   const server = createServer({
@@ -29,8 +31,8 @@ test('health only reports whether secrets are configured', async () => {
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.oauthConfigured, true);
-    assert.equal(body.promptVersion, 3);
-    assert.equal(body.buildRevision, 'structured-items-files-v3');
+    assert.equal(body.promptVersion, 4);
+    assert.equal(body.buildRevision, 'stdin-delete-reliability-v4');
     assert.equal(JSON.stringify(body).includes('test-oauth-value'), false);
   });
 });
@@ -118,4 +120,27 @@ test('converts an xlsx attachment into readable text', async () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('writes the Claude prompt to stdin instead of waiting for piped input', async () => {
+  let received = '';
+  let capturedArgs = [];
+  const result = await runClaude('표준입력 전달 점검', [], {
+    spawnProcess: (_executable, args) => {
+      capturedArgs = args;
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.stdin = new Writable({ write(chunk, _encoding, done) { received += chunk.toString('utf8'); done(); } });
+      child.kill = () => {};
+      child.stdin.on('finish', () => {
+        child.stdout.end(JSON.stringify({ structured_output: { reply: '완료', canApply: false, items: [] } }));
+        setImmediate(() => child.emit('close', 0));
+      });
+      return child;
+    },
+  });
+  assert.equal(received, '표준입력 전달 점검');
+  assert.equal(capturedArgs.includes('표준입력 전달 점검'), false);
+  assert.equal(result.reply, '완료');
 });

@@ -739,9 +739,11 @@ function setPlannerStatus_(itemId, status) {
 }
 
 function deletePlannerItem_(itemId) {
-  deleteObject_('planner', 'item_id', itemId);
-  audit_('삭제', '개인알림장', itemId, '');
-  return { ok: true };
+  itemId = String(itemId || '').trim();
+  if (!itemId) throw new Error('삭제할 일정 ID가 없습니다.');
+  const deleted = deleteObject_('planner', 'item_id', itemId);
+  if (deleted) audit_('삭제', '개인알림장', itemId, '');
+  return { ok: true, deleted: deleted > 0 };
 }
 
 function createNotice_(notice) {
@@ -891,11 +893,16 @@ function deleteObject_(key, idField, id) {
   const sheet = getSheet_(key);
   const headers = APP.headers[key];
   const idIndex = headers.indexOf(idField);
-  if (sheet.getLastRow() < 2) return;
+  if (sheet.getLastRow() < 2) return 0;
   const ids = sheet.getRange(2, idIndex + 1, sheet.getLastRow() - 1, 1).getDisplayValues();
+  let deleted = 0;
   for (let i = ids.length - 1; i >= 0; i -= 1) {
-    if (String(ids[i][0]) === String(id)) sheet.deleteRow(i + 2);
+    if (String(ids[i][0]) === String(id)) {
+      sheet.deleteRow(i + 2);
+      deleted += 1;
+    }
   }
+  return deleted;
 }
 
 function getSheet_(key) {
