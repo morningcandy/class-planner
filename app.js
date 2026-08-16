@@ -464,10 +464,6 @@
       : '<div class="empty-state">이 분류에 등록된 일정이 없습니다.</div>';
   }
 
-  function itemsOn(date) {
-    return state.plannerItems.filter((item) => item.date === date || item.due_date === date);
-  }
-
   function schoolEntriesOn(date) {
     const entries = [];
     if (typeof calendarEvents !== 'undefined') {
@@ -487,19 +483,17 @@
   }
 
   function calendarEntriesOn(date) {
+    // 달력은 학사일정 전용이다. 개인 알림장 항목은 별도 요청이 있기 전까지 합치지 않는다.
     const special = rangeFor(date, 'special');
     const vacation = rangeFor(date, 'vacation');
     return schoolEntriesOn(date).concat(
       special ? [{ type: '학교', title: special.title }] : [],
       vacation ? [{ type: '학교', title: vacation.title }] : [],
-      itemsOn(date).map((item) => ({ type: item.category, title: item.title })),
     );
   }
 
   function calendarEntryClass(type) {
-    if (type === '학급') return 'class';
-    if (type === '교과' || type === '학사') return 'subject';
-    if (type === '개인') return 'personal';
+    if (type === '학사') return 'subject';
     return 'school';
   }
 
@@ -523,7 +517,6 @@
       const entries = calendarEntriesOn(date);
       if (date === today()) classes.push('today');
       if (date === state.selectedDate) classes.push('selected');
-      if (itemsOn(date).length) classes.push('has-item');
       if (schoolEntries.length) classes.push('school');
       if (special?.type === 'exam') classes.push('exam');
       if (special?.type === 'prep') classes.push('prep');
@@ -546,7 +539,7 @@
     const list = calendarEntriesOn(date);
     $('calendarDetail').innerHTML = list.length
       ? `<strong>${escapeHtml(dateLabel(date))}</strong><br>${list.map((item) => `· [${escapeHtml(item.type)}] ${escapeHtml(item.title)}`).join('<br>')}`
-      : `<strong>${escapeHtml(dateLabel(date))}</strong><br>등록된 일정이 없습니다.`;
+      : `<strong>${escapeHtml(dateLabel(date))}</strong><br>등록된 학사일정이 없습니다.`;
   }
 
   function renderMonthAgenda(year, month) {
@@ -563,8 +556,8 @@
       });
     }
     $('calendarDetail').innerHTML = rows.length
-      ? `<strong>이번 달 전체 일정</strong><div class="month-agenda">${rows.map((entry) => `<div><time>${escapeHtml(dateLabel(entry.date))}</time><span class="tag ${calendarEntryClass(entry.type)}">${escapeHtml(entry.type)}</span><span>${escapeHtml(entry.title)}</span></div>`).join('')}</div>`
-      : '<strong>이번 달 전체 일정</strong><br>등록된 일정이 없습니다.';
+      ? `<strong>이번 달 학사일정</strong><div class="month-agenda">${rows.map((entry) => `<div><time>${escapeHtml(dateLabel(entry.date))}</time><span class="tag ${calendarEntryClass(entry.type)}">${escapeHtml(entry.type)}</span><span>${escapeHtml(entry.title)}</span></div>`).join('')}</div>`
+      : '<strong>이번 달 학사일정</strong><br>등록된 학사일정이 없습니다.';
   }
 
   function renderAll() {

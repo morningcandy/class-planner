@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#3157d5">
   <title>효니효의 개인 알림장</title>
-  <link rel="stylesheet" href="styles.css?v=20260816-order3">
+  <link rel="stylesheet" href="styles.css?v=20260816-calendar1">
 </head>
 <body>
   <div class="auth-screen" id="authScreen">
@@ -170,7 +170,7 @@
       <aside class="side-column">
         <section class="panel sticky-panel">
           <div class="section-heading compact">
-            <div><p class="eyebrow">MONTHLY VIEW</p><h2 id="calendarTitle">달력</h2></div>
+            <div><p class="eyebrow">ACADEMIC CALENDAR</p><h2 id="calendarTitle">학사일정 달력</h2><span class="muted" style="font-size:10px">개인 알림장 내용은 달력에 자동 반영하지 않습니다.</span></div>
             <div class="calendar-nav">
               <button type="button" id="prevMonth" aria-label="이전 달">‹</button>
               <button type="button" id="todayMonth">오늘</button>
@@ -178,7 +178,7 @@
             </div>
           </div>
           <div class="calendar-grid" id="calendarGrid"></div>
-          <div class="calendar-detail" id="calendarDetail">이번 달 일정을 불러오는 중입니다.</div>
+          <div class="calendar-detail" id="calendarDetail">이번 달 학사일정을 불러오는 중입니다.</div>
         </section>
         <section class="panel timetable-panel">
           <div class="section-heading compact"><div><p class="eyebrow">DAILY BELL</p><h2>시정표</h2></div><span class="muted" style="font-size:11px">2학기</span></div>
@@ -236,6 +236,6 @@
   <div class="toast hidden" id="toast" role="status"></div>
   <script src="../class-notice/data.js"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=20260816-order3"></script>
+  <script src="app.js?v=20260816-calendar1"></script>
 </body>
 </html>

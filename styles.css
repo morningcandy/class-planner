@@ -218,7 +218,6 @@ textarea { resize: vertical; line-height: 1.65; }
 .cal-cell { min-height: 72px; padding: 6px; border: 1px solid transparent; border-radius: 10px; background: #fafbfe; color: #526078; font-size: 11px; text-align: left; display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
 .cal-cell:not(.blank):hover { border-color: #cbd5ea; }
 .cal-cell.today { background: var(--primary); color: #fff; }
-.cal-cell.has-item:not(.today) { background: var(--primary-soft); color: var(--primary); font-weight: 900; }
 .cal-cell.school:not(.today) { background: #eef7f3; color: var(--subject); }
 .cal-cell.exam:not(.today) { box-shadow: inset 0 -4px #e0b62f; }
 .cal-cell.prep:not(.today) { box-shadow: inset 0 -4px #8c9caf; }
