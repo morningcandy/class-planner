@@ -20,6 +20,7 @@
     loading: false,
     claudeMessages: [],
     claudeDraft: '',
+    claudeFiles: [],
   };
 
   const $ = (id) => document.getElementById(id);
@@ -146,6 +147,21 @@
     }
   }
 
+  function renderClaudeFiles() {
+    const box = $('claudeFileList');
+    box.classList.toggle('hidden', !state.claudeFiles.length);
+    box.innerHTML = state.claudeFiles.map((file, index) => `<span class="attachment-file">${escapeHtml(file.name)} · ${(file.size / 1024 / 1024).toFixed(1)}MB<button type="button" data-remove-file="${index}" aria-label="첨부 삭제">×</button></span>`).join('');
+  }
+
+  function filePayload(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ name: file.name, type: file.type, data: String(reader.result || '').split(',')[1] || '' });
+      reader.onerror = () => reject(new Error(`${file.name} 파일을 읽지 못했습니다.`));
+      reader.readAsDataURL(file);
+    });
+  }
+
   function renderClaudeMessages(thinking = false) {
     const messages = state.claudeMessages.length ? state.claudeMessages : [{
       role: 'assistant',
@@ -167,10 +183,13 @@
   function resetClaudeChat() {
     state.claudeMessages = [];
     state.claudeDraft = '';
+    state.claudeFiles = [];
     $('claudePrompt').value = '';
+    $('claudeFiles').value = '';
     $('claudeApplyText').value = '';
     $('claudeDraft').classList.add('hidden');
     $('claudeApplyResult').classList.add('hidden');
+    renderClaudeFiles();
     renderClaudeMessages();
   }
 
@@ -580,19 +599,39 @@
 
   $('newClaudeChatBtn').addEventListener('click', resetClaudeChat);
 
+  $('claudeFiles').addEventListener('change', () => {
+    const selected = [...$('claudeFiles').files];
+    const allowed = /\.(pdf|xlsx|csv|txt|png|jpe?g|webp|gif)$/i;
+    const invalid = selected.find((file) => !allowed.test(file.name) || file.size > 6 * 1024 * 1024);
+    if (selected.length > 5) return showToast('첨부파일은 최대 5개까지 가능합니다.');
+    if (invalid) return showToast(`${invalid.name}: 지원 형식과 6MB 제한을 확인해주세요.`);
+    if (selected.reduce((sum, file) => sum + file.size, 0) > 15 * 1024 * 1024) return showToast('첨부파일 전체 크기는 15MB 이하여야 합니다.');
+    state.claudeFiles = selected;
+    renderClaudeFiles();
+  });
+  $('claudeFileList').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-remove-file]');
+    if (!button) return;
+    state.claudeFiles.splice(Number(button.dataset.removeFile), 1);
+    $('claudeFiles').value = '';
+    renderClaudeFiles();
+  });
+
   $('claudeForm').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const prompt = $('claudePrompt').value.trim();
-    if (!prompt) return showToast('Claude에게 보낼 내용을 입력해주세요.');
+    const prompt = $('claudePrompt').value.trim() || (state.claudeFiles.length ? '첨부파일 내용을 읽고 알림장 항목으로 정리해줘.' : '');
+    if (!prompt) return showToast('Claude에게 보낼 내용이나 파일을 추가해주세요.');
     const button = $('claudeSendBtn');
     const history = state.claudeMessages.slice(-8);
-    state.claudeMessages.push({ role: 'user', content: prompt });
+    const files = state.claudeFiles.slice();
+    state.claudeMessages.push({ role: 'user', content: `${prompt}${files.length ? `\n\n첨부: ${files.map((file) => file.name).join(', ')}` : ''}` });
     $('claudePrompt').value = '';
     button.disabled = true;
     button.textContent = 'Claude가 정리 중…';
     renderClaudeMessages(true);
     try {
-      const result = await bridgeRequest('/api/claude', { body: { prompt, messages: history } });
+      const attachments = await Promise.all(files.map(filePayload));
+      const result = await bridgeRequest('/api/claude', { body: { prompt, messages: history, files: attachments } });
       state.claudeMessages.push({ role: 'assistant', content: result.reply || '요청을 처리했습니다.' });
       setClaudeState('Claude 연결됨', 'connected');
       if (result.canApply && result.applyText) {
@@ -601,6 +640,9 @@
         $('claudeDraft').classList.remove('hidden');
         $('claudeApplyResult').classList.add('hidden');
       }
+      state.claudeFiles = [];
+      $('claudeFiles').value = '';
+      renderClaudeFiles();
     } catch (error) {
       state.claudeMessages.push({ role: 'assistant', content: `요청을 처리하지 못했습니다. ${error.message}` });
       setClaudeState('연결 오류', 'error');

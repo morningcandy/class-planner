@@ -6,15 +6,19 @@ const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const ExcelJS = require('exceljs');
 
-const MAX_BODY_BYTES = 256 * 1024;
+const MAX_BODY_BYTES = 18 * 1024 * 1024;
 const MAX_PROMPT_CHARS = 12000;
+const MAX_FILES = 5;
+const MAX_FILE_BYTES = 6 * 1024 * 1024;
+const MAX_TOTAL_FILE_BYTES = 15 * 1024 * 1024;
 const MAX_HISTORY_MESSAGES = 8;
 const MAX_HISTORY_CHARS = 24000;
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 10;
-const PROMPT_VERSION = 2;
+const PROMPT_VERSION = 3;
 
 const RESPONSE_SCHEMA = JSON.stringify({
   type: 'object',
@@ -22,27 +26,36 @@ const RESPONSE_SCHEMA = JSON.stringify({
   properties: {
     reply: { type: 'string' },
     canApply: { type: 'boolean' },
-    applyText: { type: 'string' },
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          scope: { type: 'string', enum: ['개인', '교과', '학급', '학생개별'] },
+          targets: { type: 'array', items: { type: 'string' } },
+          title: { type: 'string' },
+          content: { type: 'string' },
+        },
+        required: ['scope', 'targets', 'title', 'content'],
+      },
+    },
   },
-  required: ['reply', 'canApply', 'applyText'],
+  required: ['reply', 'canApply', 'items'],
 });
 
 const SYSTEM_PROMPT = `당신은 한국 고등학교 담임교사의 개인 알림장 정리 도우미입니다.
 사용자의 질문에는 간결하고 실용적인 한국어로 답하세요.
 전달사항, 쿨메신저, 일정 또는 공지를 붙여넣은 경우 핵심 내용과 날짜를 정리하세요.
-알림장에 바로 반영할 준비가 되었을 때만 canApply를 true로 설정하고 applyText를 작성하세요.
-applyText 첫 줄은 반드시 다음 중 하나여야 합니다.
-/공지사항 [학급]
-/공지사항 [교과]
-/공지사항 [개인]
-/공지사항 [학생개별: 학생이름]
-그 아래에는 제목과 전달 내용을 자연스럽게 작성하세요. 사용자가 제공하지 않은 날짜, 학생 이름, 사실은 만들지 마세요.
+알림장에 바로 반영할 준비가 되었을 때만 canApply를 true로 설정하고 items 배열을 작성하세요. 준비되지 않았으면 items는 빈 배열입니다.
+각 items 원소는 서로 독립적으로 완료 체크하거나 게시 여부를 결정할 수 있는 단위여야 합니다. 제목·내용·날짜 맥락을 각 원소에 완결되게 넣으세요.
+사용자가 제공하지 않은 날짜, 학생 이름, 사실은 만들지 마세요.
 전체 학생에게 알려야 하면 학급, 교과 수업 관련이면 교과, 교사만 볼 업무면 개인, 특정 학생만 대상이면 학생개별을 선택하세요.
-서로 독립적으로 확인하거나 완료할 수 있는 일정·업무·번호 목록은 반드시 항목별로 나누세요.
-각 항목마다 /공지사항 [...] 명령을 다시 쓰고 항목 사이에는 --- 한 줄을 넣으세요. 공통 날짜와 필요한 맥락은 각 항목에 반복하세요.
+서로 독립적으로 확인하거나 완료할 수 있는 일정·업무·번호 목록은 반드시 별도 items 원소로 나누세요. 공통 날짜와 필요한 맥락은 각 원소에 반복하세요.
 교직원회의처럼 학생에게 알릴 필요가 없는 교사 업무는 [개인]으로, 학생에게 안내할 내용만 [학급] 또는 [학생개별]로 분류하세요.
 단순한 설명 문단은 별도 체크 항목으로 만들지 말고 관련 항목의 맥락으로 포함하세요.
-단순 질문이나 추가 정보가 필요한 경우 canApply는 false이고 applyText는 빈 문자열이어야 합니다.
+학생개별이면 targets에 대상 학생 이름을 넣고, 그 외에는 targets를 빈 배열로 두세요.
+단순 질문이나 추가 정보가 필요한 경우 canApply는 false이고 items는 빈 배열이어야 합니다.
 응답은 지정된 JSON 스키마만 따르세요.`;
 
 function allowedOrigins() {
@@ -143,19 +156,70 @@ function parseClaudeOutput(stdout) {
   if (typeof result === 'string') {
     const trimmed = result.trim().replace(/^```json\s*/i, '').replace(/\s*```$/, '');
     try { result = JSON.parse(trimmed); }
-    catch { result = { reply: result, canApply: false, applyText: '' }; }
+    catch { result = { reply: result, canApply: false, items: [] }; }
   }
   if (!result || typeof result !== 'object') throw new Error('Claude 응답을 해석하지 못했습니다.');
+  const items = Array.isArray(result.items) ? result.items.map((item) => ({
+    scope: ['개인', '교과', '학급', '학생개별'].includes(item?.scope) ? item.scope : '개인',
+    targets: Array.isArray(item?.targets) ? item.targets.map((value) => String(value).trim()).filter(Boolean) : [],
+    title: String(item?.title || '').trim(),
+    content: String(item?.content || '').trim(),
+  })).filter((item) => item.title || item.content) : [];
+  const applyText = items.length ? items.map((item) => {
+    const label = item.scope === '학생개별' ? `학생개별: ${item.targets.join(', ')}` : item.scope;
+    return `/공지사항 [${label}]\n${[item.title, item.content].filter(Boolean).join('\n')}`;
+  }).join('\n---\n') : String(result.applyText || '').trim();
   return {
     reply: String(result.reply || '').trim(),
-    canApply: result.canApply === true && !!String(result.applyText || '').trim(),
-    applyText: String(result.applyText || '').trim(),
+    canApply: result.canApply === true && !!applyText,
+    applyText,
+    items,
   };
 }
 
-function runClaude(prompt) {
+async function prepareAttachments(tempDir, files) {
+  if (!Array.isArray(files) || !files.length) return '';
+  if (files.length > MAX_FILES) throw new Error(`첨부파일은 최대 ${MAX_FILES}개까지 가능합니다.`);
+  let total = 0;
+  const references = [];
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index] || {};
+    const original = path.basename(String(file.name || `file-${index + 1}`));
+    const ext = path.extname(original).toLowerCase();
+    if (!['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.xlsx', '.csv', '.txt'].includes(ext)) {
+      throw new Error(`${original}: 지원하지 않는 파일 형식입니다.`);
+    }
+    const buffer = Buffer.from(String(file.data || ''), 'base64');
+    if (!buffer.length || buffer.length > MAX_FILE_BYTES) throw new Error(`${original}: 파일 크기는 6MB 이하여야 합니다.`);
+    total += buffer.length;
+    if (total > MAX_TOTAL_FILE_BYTES) throw new Error('첨부파일 전체 크기는 15MB 이하여야 합니다.');
+    const safeBase = `attachment-${index + 1}`;
+    if (ext === '.xlsx') {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
+      const rows = [];
+      workbook.eachSheet((sheet) => {
+        rows.push(`[시트: ${sheet.name}]`);
+        sheet.eachRow((row) => rows.push(row.values.slice(1).map((value) => String(value ?? '')).join('\t')));
+      });
+      const target = `${safeBase}-${original.replace(/[^0-9A-Za-z가-힣._-]/g, '_')}.txt`;
+      fs.writeFileSync(path.join(tempDir, target), rows.join('\n').slice(0, 500000), 'utf8');
+      references.push(`${original} (엑셀 텍스트 변환본: ./${target})`);
+    } else {
+      const target = `${safeBase}-${original.replace(/[^0-9A-Za-z가-힣._-]/g, '_')}`;
+      fs.writeFileSync(path.join(tempDir, target), buffer);
+      references.push(`${original} (./${target})`);
+    }
+  }
+  return `\n\n첨부파일이 있습니다. Read 도구로 아래 파일만 읽고 교사의 요청과 함께 정리하세요.\n${references.map((value) => `- ${value}`).join('\n')}`;
+}
+
+async function runClaude(prompt, files = []) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'class-planner-claude-'));
+  let attachmentPrompt = '';
+  try { attachmentPrompt = await prepareAttachments(tempDir, files); }
+  catch (error) { fs.rmSync(tempDir, { recursive: true, force: true }); throw error; }
   return new Promise((resolve, reject) => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'class-planner-claude-'));
     const executable = process.env.CLAUDE_BIN || path.join(
       __dirname, 'node_modules', '.bin', process.platform === 'win32' ? 'claude.cmd' : 'claude'
     );
@@ -168,8 +232,10 @@ function runClaude(prompt) {
     const args = [
       '-p', '--output-format', 'json', '--json-schema', RESPONSE_SCHEMA,
       '--model', model, '--max-turns', '1', '--no-session-persistence',
-      '--safe-mode', '--tools', '', '--disallowedTools', 'mcp__*',
-      '--disable-slash-commands', '--system-prompt', SYSTEM_PROMPT, prompt,
+      '--safe-mode', '--permission-mode', 'dontAsk', '--tools', attachmentPrompt ? 'Read' : '',
+      ...(attachmentPrompt ? ['--allowedTools', 'Read(./**)'] : []),
+      '--disallowedTools', 'mcp__*',
+      '--disable-slash-commands', '--system-prompt', SYSTEM_PROMPT, prompt + attachmentPrompt,
     ];
     const child = spawn(executable, args, { cwd: tempDir, env: childEnv, windowsHide: true });
     const stdout = [];
@@ -267,7 +333,7 @@ function createServer(options = {}) {
       if (!prompt) return sendJson(response, 400, { ok: false, error: 'Claude에게 보낼 내용을 입력해주세요.' }, origin);
       if (prompt.length > MAX_PROMPT_CHARS) return sendJson(response, 413, { ok: false, error: '한 번에 입력할 수 있는 글자 수를 초과했습니다.' }, origin);
       busy = true;
-      const result = await invokeClaude(buildPrompt(prompt, body.messages));
+      const result = await invokeClaude(buildPrompt(prompt, body.messages), body.files);
       return sendJson(response, 200, { ok: true, ...result }, origin);
     } catch (error) {
       const status = Number(error.status) || 500;
@@ -285,4 +351,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createServer, buildPrompt, normalizeMessages, parseClaudeOutput, safeEqual, SYSTEM_PROMPT };
+module.exports = { createServer, buildPrompt, normalizeMessages, parseClaudeOutput, safeEqual, prepareAttachments, SYSTEM_PROMPT };

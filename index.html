@@ -82,6 +82,12 @@
 
       <form id="claudeForm" class="claude-form">
         <textarea id="claudePrompt" rows="6" maxlength="12000" placeholder="예: 아래 전달사항을 학급 공지로 정리해줘.&#10;&#10;금요일까지 진로희망 조사서를 제출하도록 안내 부탁드립니다."></textarea>
+        <div class="attachment-row">
+          <label class="attachment-button" for="claudeFiles">＋ 파일 첨부</label>
+          <input id="claudeFiles" type="file" multiple accept=".pdf,.xlsx,.csv,.txt,image/png,image/jpeg,image/webp,image/gif">
+          <span class="muted">PDF·Excel(.xlsx)·CSV·텍스트·이미지, 파일당 6MB / 최대 5개</span>
+        </div>
+        <div class="attachment-list hidden" id="claudeFileList"></div>
         <div class="command-row" aria-label="명령어 예시">
           <button type="button" class="command-chip" data-claude-prompt="다음 내용을 학급 전체 공지로 정리해줘.\n\n">학급 공지</button>
           <button type="button" class="command-chip" data-claude-prompt="다음 내용을 교과 업무로 정리해줘.\n\n">교과 업무</button>

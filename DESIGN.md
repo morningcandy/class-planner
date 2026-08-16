@@ -40,7 +40,7 @@
 | 개인 알림장 | `https://morningcandy.github.io/class-planner/` | 교사 입력·일정·공지 검토 | 배포됨, HTTP 200 확인 |
 | 학급 알림장 | `https://morningcandy.github.io/class-notice/` | 학생 공지·할 일 표시 | 배포됨, HTTP 200 확인 |
 | 학급 관리자 | `https://morningcandy.github.io/class-notice/admin/` | 공지 수정·게시·보류·종료 | 배포됨, HTTP 200 확인 |
-| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행 및 구조화 결과 반환 | Render `live`, 실제 요청 성공 |
+| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 3 코드 반영 |
 | Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 5, health 확인 완료 |
 | Google Sheets | 교사 개인 스프레드시트 | 모든 업무·공지·응답의 원본 | 앱 전용 탭 6개 초기화 완료 |
 
@@ -142,6 +142,8 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - Claude 결과는 자동 게시하지 않고 교사가 수정 가능한 초안으로만 사용한다.
 - Claude가 정리한 명령은 `ingestPrepared`로 저장해 Apps Script에서 AI를 중복 호출하지 않는다.
 - 독립된 일정·업무는 명령 블록 또는 번호 목록 기준으로 분리해 항목별 완료 체크와 개별 공지 검토가 가능해야 한다.
+- Claude의 자유형 문자열에 의존하지 않고 `items[]` 구조화 출력으로 분리 단위를 강제한다.
+- 첨부파일은 요청별 임시 폴더에서만 처리하고 완료·실패 시 삭제한다.
 
 ## 구현된 내용
 
@@ -165,6 +167,8 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [x] `확인·완료` 같은 일반 문구를 할 일로 오분류하지 않도록 기본 분류 규칙 보완
 - [x] Claude의 독립 일정별 명령 블록 분리와 교사·학생 대상별 개별 분류 지시
 - [x] `---` 다중 명령과 `1.`, `2.` 번호 목록을 별도 개인 일정·공지 초안으로 저장
+- [x] Claude 결과를 분류·대상·제목·내용을 가진 구조화 `items[]`로 강제하고 명령 블록으로 변환
+- [x] PDF·Excel(.xlsx)·CSV·텍스트·이미지 첨부 UI, 크기 제한, 임시파일 삭제 구현
 
 ## 남은 개발 항목
 
@@ -177,6 +181,23 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [ ] **P2** Google Sheets 백업 주기와 Render·Apps Script 장애 대응 절차를 정한다.
 
 ## 최근 작업
+
+### 2026-08-16 — 구조화 분리 보강 및 파일 첨부 연동
+
+- 확인한 원인
+  - promptVersion 2가 배포됐어도 Claude가 자유형 `applyText`를 한 블록으로 반환하면 분리가 표현 방식에 좌우됨
+  - 학급 알림장의 개인 코드 인증 실패는 운영 `앱_학생목록`의 활성 학생과 코드가 모두 0건이기 때문
+- 개발 내용
+  - Claude 출력 스키마를 `items[]` 배열로 변경하고 각 항목의 분류·대상·제목·내용을 필수화
+  - 구조화 항목을 `---` 명령 블록으로 서버에서 결정적으로 변환
+  - PDF·이미지는 제한된 Read 도구, Excel은 서버 텍스트 변환 후 Claude에 전달
+  - 파일당 6MB, 최대 5개, 전체 15MB 제한 및 요청 종료 시 임시파일 삭제
+  - 학급 관리자 화면에 학생·개인 코드 미설정 경고와 `앱_학생목록` 바로가기 추가
+- 검증
+  - 구조화 항목의 다중 명령 변환 및 Excel 텍스트 변환 포함 브리지 테스트 9개 통과
+  - 운영 데이터 확인: 학생 0명, 개인 코드 0개
+- 가장 명확한 다음 단계
+  - `앱_학생목록`에 실제 학생과 개인 코드를 입력한 뒤 두 학생 코드로 격리·응답을 검증한다.
 
 ### 2026-08-16 — Claude 묶음 입력의 항목별 체크리스트 분리
 

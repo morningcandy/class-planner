@@ -138,6 +138,12 @@ textarea { resize: vertical; line-height: 1.65; }
 .thinking-dots::after { content: '…'; animation: blink 1.1s infinite; }
 @keyframes blink { 0%, 30% { opacity: .25; } 60%, 100% { opacity: 1; } }
 .claude-form textarea { min-height: 125px; }
+.attachment-row { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 9px; }
+.attachment-row input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.attachment-button { display: inline-flex; align-items: center; padding: 8px 11px; border: 1px solid #ced8ff; border-radius: 9px; background: #f3f6ff; color: var(--primary); font-size: 11px; font-weight: 900; cursor: pointer; }
+.attachment-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.attachment-file { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 8px; background: #f0f3f8; color: #4d5871; font-size: 11px; }
+.attachment-file button { padding: 0 3px; background: transparent; color: var(--danger); font-weight: 900; }
 .claude-draft { margin-top: 15px; padding: 16px; border: 1px solid #b9c9ff; border-radius: 15px; background: #f3f6ff; }
 .draft-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
 .draft-heading h3 { margin: 3px 0 0; font-size: 15px; }
