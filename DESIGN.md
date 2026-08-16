@@ -40,7 +40,7 @@
 | 개인 알림장 | `https://morningcandy.github.io/class-planner/` | 교사 입력·일정·공지 검토 | 배포됨, HTTP 200 확인 |
 | 학급 알림장 | `https://morningcandy.github.io/class-notice/` | 학생 공지·할 일 표시 | 배포됨, HTTP 200 확인 |
 | 학급 관리자 | `https://morningcandy.github.io/class-notice/admin/` | 공지 수정·게시·보류·종료 | 배포됨, HTTP 200 확인 |
-| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, 운영 promptVersion 2·최신 코드 3 재배포 필요 |
+| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 3·buildRevision 검증 완료 |
 | Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 7, health 확인 완료 |
 | Google Sheets | 교사 개인 스프레드시트 | 모든 업무·공지·응답의 원본 | 앱 전용 탭 6개 초기화 완료 |
 
@@ -171,12 +171,12 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [x] `---` 다중 명령과 `1.`, `2.` 번호 목록을 별도 개인 일정·공지 초안으로 저장
 - [x] Claude 결과를 분류·대상·제목·내용을 가진 구조화 `items[]`로 강제하고 명령 블록으로 변환
 - [x] PDF·Excel(.xlsx)·CSV·텍스트·이미지 첨부 UI, 크기 제한, 임시파일 삭제 구현
+- [x] Render 운영 서버에 구조화 분리·파일 첨부 promptVersion 3 배포
 - [x] 기존 `명단(번호·이름·코드)` 28명을 `앱_학생목록`으로 자동 이전
 - [x] 중복 개인코드는 학생 인증과 응답 기록에서 안전하게 거부
 
 ## 남은 개발 항목
 
-- [ ] **P0** 개인 알림장 브라우저에서 클립보드의 브리지 접근 키를 입력하고 `연결 확인`을 완료한다.
 - [ ] **P0** 실제 학생 두 명의 개인 코드로 `[학생개별]` 격리와 학생 확인·완료 응답을 종단 간 테스트한다.
 - [ ] **P1** 초기 관리자 비밀번호 `admin1234`를 8자 이상의 개인 비밀번호로 변경한다.
 - [x] **P1** `앱_학생목록`의 학생 ID·이름·개인 코드·활성 여부를 점검하고 코드 중복을 제거한다.
@@ -185,6 +185,20 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [ ] **P2** Google Sheets 백업 주기와 Render·Apps Script 장애 대응 절차를 정한다.
 
 ## 최근 작업
+
+### 2026-08-16 — Render 구조화 분리·파일 첨부 운영 배포 완료
+
+- 개발·배포 내용
+  - Claude 결과를 `items[]`로 강제하는 promptVersion 3 운영 배포
+  - PDF·Excel·CSV·텍스트·이미지 첨부 처리 포함
+  - 배포 식별용 `buildRevision` health 응답 적용
+- 검증
+  - 운영 health `promptVersion: 3`
+  - 운영 health `buildRevision: structured-items-files-v3`
+  - OAuth 토큰과 브리지 접근 키 설정 상태 정상
+  - 구조화 분리·Excel 변환을 포함한 서버 테스트 9개 통과
+- 가장 명확한 다음 단계
+  - 개인 알림장 화면에서 실제 첨부파일이 포함된 전달사항 한 건을 보내 결과 품질을 확인한다.
 
 ### 2026-08-16 — 기존 학생 개인코드 이전 및 인증 안전성 보강
 
