@@ -40,7 +40,7 @@
 | 개인 알림장 | `https://morningcandy.github.io/class-planner/` | 교사 입력·일정·공지 검토 | 배포됨, HTTP 200 확인 |
 | 학급 알림장 | `https://morningcandy.github.io/class-notice/` | 학생 공지·할 일 표시 | 배포됨, HTTP 200 확인 |
 | 학급 관리자 | `https://morningcandy.github.io/class-notice/admin/` | 공지 수정·게시·보류·종료 | 배포됨, HTTP 200 확인 |
-| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 5 배포 확인 |
+| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 6 배포 확인 |
 | Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 10, 공지 순서 저장·공개 검증 완료 |
 | Google Sheets | 교사 개인 스프레드시트 | 모든 업무·공지·응답의 원본 | 앱 전용 탭 6개 초기화 완료 |
 
@@ -460,7 +460,9 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
   - 브리지 Excel 변환, PDF·JPG 준비, Read 도구 설정, 첨부 누락 차단을 포함한 테스트 14개 통과
   - 실제 Chrome에서 Excel+PDF 선택 후 JPG를 추가해 3개 파일이 모두 유지되는지 확인
   - 실제 Chrome에서 시간표 본문이 HTML 표로 표시되고 임의 파일 URL은 학생 화면에 링크로 나타나지 않는지 확인
+  - 운영 Render `/health`에서 `promptVersion: 6`, `buildRevision: attachment-content-tables-v6`, OAuth·접속키 설정을 확인
+  - 운영 개인·학급 GitHub Pages에서 첨부 누적 및 표 렌더러 최신 자산 로드를 확인
 - 남은 개발 항목
-  - Render 운영 브리지에서 promptVersion 6 배포 후 실제 문서 1건씩으로 Claude의 내용 추출 품질을 최종 확인
+  - 실사용 문서에서 글씨가 흐리거나 복잡한 병합 셀이 있을 때 추출 품질을 사례별로 확인
 - 가장 최근에 진행한 내용
-  - 파일 수신과 실제 읽기 확인을 분리하고, 읽지 못한 첨부가 있으면 저장 전 단계에서 중단하도록 구현함
+  - Render promptVersion 6과 두 GitHub Pages의 최신 자산 배포를 운영 환경에서 확인함
