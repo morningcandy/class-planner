@@ -40,8 +40,8 @@
 | 개인 알림장 | `https://morningcandy.github.io/class-planner/` | 교사 입력·일정·공지 검토 | 배포됨, HTTP 200 확인 |
 | 학급 알림장 | `https://morningcandy.github.io/class-notice/` | 학생 공지·할 일 표시 | 배포됨, HTTP 200 확인 |
 | 학급 관리자 | `https://morningcandy.github.io/class-notice/admin/` | 공지 수정·게시·보류·종료 | 배포됨, HTTP 200 확인 |
-| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 3 코드 반영 |
-| Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 5, health 확인 완료 |
+| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, 운영 promptVersion 2·최신 코드 3 재배포 필요 |
+| Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 6, health 확인 완료 |
 | Google Sheets | 교사 개인 스프레드시트 | 모든 업무·공지·응답의 원본 | 앱 전용 탭 6개 초기화 완료 |
 
 ## 4. 데이터 흐름
@@ -102,6 +102,7 @@ Claude 연결을 사용할 수 없을 때는 교사가 `/공지사항 [...]` 명
 - `ingest`
 - `ingestPrepared`
 - `importLegacyPlanner`
+- `importLegacyStudents`
 - `upsertPlannerItem`, `setPlannerStatus`, `deletePlannerItem`
 - `createNotice`, `updateNotice`, `setNoticeStatus`
 
@@ -169,24 +170,41 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [x] `---` 다중 명령과 `1.`, `2.` 번호 목록을 별도 개인 일정·공지 초안으로 저장
 - [x] Claude 결과를 분류·대상·제목·내용을 가진 구조화 `items[]`로 강제하고 명령 블록으로 변환
 - [x] PDF·Excel(.xlsx)·CSV·텍스트·이미지 첨부 UI, 크기 제한, 임시파일 삭제 구현
+- [x] 기존 `명단(번호·이름·코드)` 28명을 `앱_학생목록`으로 자동 이전
+- [x] 중복 개인코드는 학생 인증과 응답 기록에서 안전하게 거부
 
 ## 남은 개발 항목
 
 - [ ] **P0** 개인 알림장 브라우저에서 클립보드의 브리지 접근 키를 입력하고 `연결 확인`을 완료한다.
 - [ ] **P0** 실제 학생 두 명의 개인 코드로 `[학생개별]` 격리와 학생 확인·완료 응답을 종단 간 테스트한다.
 - [ ] **P1** 초기 관리자 비밀번호 `admin1234`를 8자 이상의 개인 비밀번호로 변경한다.
-- [ ] **P1** `앱_학생목록`의 학생 ID·이름·개인 코드·활성 여부를 점검하고 코드 중복을 제거한다.
+- [x] **P1** `앱_학생목록`의 학생 ID·이름·개인 코드·활성 여부를 점검하고 코드 중복을 제거한다.
 - [ ] **P1** 모바일 화면에서 학생 개인 코드 로그인, 공지 확인, 할 일 완료 동작을 확인한다.
 - [ ] **P2** 비밀값이 없는 이전 Render 테스트 서비스 `class-planner-claude-bridge`를 확인 후 삭제한다.
 - [ ] **P2** Google Sheets 백업 주기와 Render·Apps Script 장애 대응 절차를 정한다.
 
 ## 최근 작업
 
+### 2026-08-16 — 기존 학생 개인코드 이전 및 인증 안전성 보강
+
+- 확인한 원인
+  - 학급 알림장 코드는 올바른 Apps Script URL로 개인코드를 전송하고 있었으나 새 `앱_학생목록`이 비어 있었음
+- 개발 내용
+  - 기존 `명단` 탭의 `번호`, `이름`, `코드`를 `앱_학생목록`으로 가져오는 관리자 작업과 시트 메뉴 추가
+  - 같은 코드가 두 명 이상에게 중복되면 어느 학생으로도 인증하지 않도록 변경
+  - Apps Script 운영 배포를 버전 6으로 갱신
+- 검증
+  - 기존 명단 28명과 개인코드 28개 이전, 활성 학생 28명 확인
+  - 중복 개인코드 0개 확인
+  - 운영 학급 알림장이 개인코드 조회와 학생 응답에 동일한 Apps Script 배포 URL을 사용하는지 확인
+- 가장 명확한 다음 단계
+  - 서로 다른 실제 학생 코드 두 개로 개별 공지 격리와 확인·완료 응답을 모바일에서 확인한다.
+
 ### 2026-08-16 — 구조화 분리 보강 및 파일 첨부 연동
 
 - 확인한 원인
   - promptVersion 2가 배포됐어도 Claude가 자유형 `applyText`를 한 블록으로 반환하면 분리가 표현 방식에 좌우됨
-  - 학급 알림장의 개인 코드 인증 실패는 운영 `앱_학생목록`의 활성 학생과 코드가 모두 0건이기 때문
+  - 학급 알림장의 개인 코드 인증 실패는 당시 운영 `앱_학생목록`의 활성 학생과 코드가 모두 0건이었기 때문
 - 개발 내용
   - Claude 출력 스키마를 `items[]` 배열로 변경하고 각 항목의 분류·대상·제목·내용을 필수화
   - 구조화 항목을 `---` 명령 블록으로 서버에서 결정적으로 변환
@@ -195,9 +213,10 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
   - 학급 관리자 화면에 학생·개인 코드 미설정 경고와 `앱_학생목록` 바로가기 추가
 - 검증
   - 구조화 항목의 다중 명령 변환 및 Excel 텍스트 변환 포함 브리지 테스트 9개 통과
+  - 운영 health는 아직 promptVersion 2로 응답하여 최신 Render 재배포가 필요함
   - 운영 데이터 확인: 학생 0명, 개인 코드 0개
 - 가장 명확한 다음 단계
-  - `앱_학생목록`에 실제 학생과 개인 코드를 입력한 뒤 두 학생 코드로 격리·응답을 검증한다.
+  - promptVersion 3을 Render 운영 서비스에 반영하고 첨부파일이 포함된 실제 묶음 입력을 검증한다.
 
 ### 2026-08-16 — Claude 묶음 입력의 항목별 체크리스트 분리
 

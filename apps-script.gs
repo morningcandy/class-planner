@@ -32,8 +32,9 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('학급 플래너')
     .addItem('1. 앱 시트 만들기/점검', 'setupClassPlanner')
-    .addItem('2. 관리자 토큰 설정', 'setAdminToken')
-    .addItem('3. OpenAI API 키 설정(선택)', 'setOpenAIKey')
+    .addItem('2. 기존 명단 가져오기', 'importLegacyStudentsFromMenu')
+    .addItem('3. 관리자 토큰 설정', 'setAdminToken')
+    .addItem('4. OpenAI API 키 설정(선택)', 'setOpenAIKey')
     .addItem('연결 상태 확인', 'showSetupStatus')
     .addToUi();
 }
@@ -53,6 +54,22 @@ function setupClassPlanner() {
       : '기존 관리자 비밀번호는 그대로 유지했습니다.\n\n') +
     '학생 명단을 앱_학생목록에 입력하세요.'
   );
+}
+
+function importLegacyStudentsFromMenu() {
+  try {
+    ensureClassPlannerSheets_();
+    const result = importLegacyStudents_();
+    SpreadsheetApp.getUi().alert(
+      result.found
+        ? '기존 명단에서 ' + result.count + '명을 가져왔습니다.\n' +
+          '개인 코드 설정: ' + result.withCode + '명\n' +
+          (result.duplicateCodes ? '중복 코드: ' + result.duplicateCodes + '개(확인 필요)' : '중복 코드 없음')
+        : '“명단” 시트를 찾지 못했습니다. 앱_학생목록에 학생 정보를 직접 입력해주세요.'
+    );
+  } catch (error) {
+    SpreadsheetApp.getUi().alert(publicError_(error));
+  }
 }
 
 function setAdminToken() {
@@ -128,6 +145,7 @@ function doPost(e) {
       case 'ingest': return json_(ingest_(body.rawText));
       case 'ingestPrepared': return json_(ingest_(body.rawText, true));
       case 'importLegacyPlanner': return json_(importLegacyPlanner_(body.items || []));
+      case 'importLegacyStudents': return json_(importLegacyStudents_());
       case 'upsertPlannerItem': return json_(upsertPlannerItem_(body.item || {}));
       case 'setPlannerStatus': return json_(setPlannerStatus_(body.itemId, body.status));
       case 'deletePlannerItem': return json_(deletePlannerItem_(body.itemId));
@@ -504,9 +522,10 @@ function enforceCommand_(analysis, command) {
 function getStudentFeed_(code) {
   const students = readObjects_('students');
   const normalized = normalizeStudentCode_(code);
-  const student = normalized ? students.find(function (row) {
+  const matches = normalized ? students.filter(function (row) {
     return isStudentActive_(row) && normalizeStudentCode_(row.personal_code) === normalized;
-  }) : null;
+  }) : [];
+  const student = matches.length === 1 ? matches[0] : null;
 
   const notices = readObjects_('notices').filter(function (notice) {
     if (String(notice.status) !== '게시됨') return false;
@@ -546,9 +565,10 @@ function getStudentFeed_(code) {
 
 function recordStudentResponse_(body) {
   const code = normalizeStudentCode_(body.code);
-  const student = readObjects_('students').find(function (row) {
+  const matches = readObjects_('students').filter(function (row) {
     return isStudentActive_(row) && normalizeStudentCode_(row.personal_code) === code;
   });
+  const student = code && matches.length === 1 ? matches[0] : null;
   if (!student) throw new Error('학생 코드를 확인할 수 없습니다.');
   const notice = findObject_('notices', 'notice_id', body.itemId);
   const allowed = notice && String(notice.status) === '게시됨' && (
@@ -613,6 +633,69 @@ function importLegacyPlanner_(items) {
   rows.forEach(function (row) { upsertObject_('planner', 'item_id', row); });
   audit_('기존일정가져오기', '개인알림장', '', rows.length + '건');
   return { ok: true, count: rows.length };
+}
+
+function importLegacyStudents_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const legacy = ss.getSheetByName('명단');
+  if (!legacy || legacy.getLastRow() < 2) {
+    return { ok: true, found: !!legacy, count: 0, withCode: 0, duplicateCodes: 0 };
+  }
+
+  const values = legacy.getDataRange().getDisplayValues();
+  const headers = values[0].map(function (value) { return String(value || '').trim(); });
+  const numberIndex = headers.indexOf('번호');
+  const nameIndex = headers.indexOf('이름');
+  const codeIndex = headers.indexOf('코드');
+  if (numberIndex < 0 || nameIndex < 0 || codeIndex < 0) {
+    throw new Error('“명단” 시트의 첫 행에 번호, 이름, 코드 열이 필요합니다.');
+  }
+
+  const candidates = values.slice(1).map(function (row) {
+    const number = String(row[numberIndex] || '').trim();
+    const name = String(row[nameIndex] || '').trim();
+    return {
+      student_id: studentId_({ number: number }),
+      number: number,
+      name: name,
+      personal_code: normalizeStudentCode_(row[codeIndex]),
+    };
+  }).filter(function (student) {
+    return student.student_id && student.number && student.name;
+  });
+
+  const codeCounts = {};
+  candidates.forEach(function (student) {
+    if (student.personal_code) {
+      codeCounts[student.personal_code] = (codeCounts[student.personal_code] || 0) + 1;
+    }
+  });
+
+  let duplicateCodes = 0;
+  Object.keys(codeCounts).forEach(function (code) {
+    if (codeCounts[code] > 1) duplicateCodes += 1;
+  });
+
+  candidates.forEach(function (student) {
+    upsertObject_('students', 'student_id', {
+      student_id: student.student_id,
+      number: student.number,
+      name: student.name,
+      personal_code: student.personal_code,
+      active: 'TRUE',
+      note: '기존 명단에서 가져옴',
+    });
+  });
+
+  const withCode = candidates.filter(function (student) { return !!student.personal_code; }).length;
+  audit_('기존명단가져오기', '학생목록', '', candidates.length + '명 / 코드 ' + withCode + '명 / 중복 ' + duplicateCodes + '개');
+  return {
+    ok: true,
+    found: true,
+    count: candidates.length,
+    withCode: withCode,
+    duplicateCodes: duplicateCodes,
+  };
 }
 
 function setPlannerStatus_(itemId, status) {
