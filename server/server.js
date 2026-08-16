@@ -18,8 +18,8 @@ const MAX_HISTORY_CHARS = 24000;
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 10;
-const PROMPT_VERSION = 6;
-const BUILD_REVISION = 'attachment-content-tables-v6';
+const PROMPT_VERSION = 7;
+const BUILD_REVISION = 'long-attachments-student-codes-v7';
 
 const RESPONSE_SCHEMA = JSON.stringify({
   type: 'object',
@@ -276,8 +276,8 @@ async function runClaude(prompt, files = [], options = {}) {
       __dirname, 'node_modules', '.bin', process.platform === 'win32' ? 'claude.cmd' : 'claude'
     );
     const model = String(process.env.CLAUDE_MODEL || 'sonnet');
-    const timeoutMs = Math.min(Math.max(Number(process.env.CLAUDE_TIMEOUT_MS) || 120000, 15000), 300000);
-    const defaultMaxTurns = attachmentPrompt ? 6 : 3;
+    const timeoutMs = Math.min(Math.max(Number(process.env.CLAUDE_TIMEOUT_MS) || 280000, 15000), 300000);
+    const defaultMaxTurns = attachmentPrompt ? 8 : 3;
     const maxTurns = Math.min(Math.max(Number(process.env.CLAUDE_MAX_TURNS) || defaultMaxTurns, 2), 8);
     const childEnv = { ...process.env, CI: 'true', CLAUDE_CODE_SKIP_PROMPT_HISTORY: '1' };
     delete childEnv.ANTHROPIC_API_KEY;

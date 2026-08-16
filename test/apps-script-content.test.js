@@ -35,3 +35,21 @@ test('does not split a markdown separator row into command blocks', () => {
   const blocks = vm.runInContext('splitCommandBlocks_(__raw)', context);
   assert.equal(blocks.length, 1);
 });
+
+test('builds and validates a six-digit number plus phone suffix student code', () => {
+  const context = appsScriptContext();
+  assert.equal(vm.runInContext("makeStudentCode_('1', '010-5555-1234')", context), '011234');
+  assert.equal(vm.runInContext("makeStudentCode_('1', '991234')", context), '011234');
+  assert.equal(vm.runInContext("makeStudentCode_('12', '010-5555-9876')", context), '129876');
+  assert.equal(vm.runInContext("normalizeStudentCode_('01-1234')", context), '011234');
+  assert.equal(vm.runInContext("normalizeStudentCode_('11234')", context), '');
+  context.__student = { number: 1, personal_code: '011234' };
+  assert.equal(vm.runInContext('validStudentCode_(__student)', context), true);
+  context.__student.personal_code = '021234';
+  assert.equal(vm.runInContext('validStudentCode_(__student)', context), false);
+});
+
+test('keeps the personal-code sheet column in text format for leading zeroes', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'apps-script.gs'), 'utf8');
+  assert.match(source, /getRange\('D2:D'\)\.setNumberFormat\('@'\)/);
+});

@@ -173,7 +173,7 @@ function getAdminData_() {
         number: student.number,
         name: student.name,
         active: isStudentActive_(student),
-        has_code: !!String(student.personal_code || '').trim(),
+        has_code: validStudentCode_(student),
         note: student.note || '',
       };
     }),
@@ -187,14 +187,18 @@ function validateStudentSetup_() {
   const students = readObjects_('students').filter(isStudentActive_);
   const codeCounts = {};
   let withCode = 0;
+  let invalidCodeFormats = 0;
   students.forEach(function (student) {
     const code = normalizeStudentCode_(student.personal_code);
-    if (!code) return;
+    if (!code || !validStudentCode_(student)) {
+      invalidCodeFormats += 1;
+      return;
+    }
     withCode += 1;
     codeCounts[code] = (codeCounts[code] || 0) + 1;
   });
   const duplicateCodes = Object.keys(codeCounts).filter(function (code) { return codeCounts[code] > 1; }).length;
-  const authReady = students.length > 0 && withCode === students.length && duplicateCodes === 0;
+  const authReady = students.length > 0 && withCode === students.length && duplicateCodes === 0 && invalidCodeFormats === 0;
   let loginProbe = false;
   if (authReady) {
     const sample = students[0];
@@ -206,6 +210,7 @@ function validateStudentSetup_() {
     activeStudents: students.length,
     studentsWithCode: withCode,
     duplicateCodes: duplicateCodes,
+    invalidCodeFormats: invalidCodeFormats,
     authReady: authReady,
     loginProbe: loginProbe,
   };
@@ -683,18 +688,22 @@ function importLegacyStudents_() {
   const numberIndex = headers.indexOf('번호');
   const nameIndex = headers.indexOf('이름');
   const codeIndex = headers.indexOf('코드');
-  if (numberIndex < 0 || nameIndex < 0 || codeIndex < 0) {
-    throw new Error('“명단” 시트의 첫 행에 번호, 이름, 코드 열이 필요합니다.');
+  const phoneIndex = findHeaderIndex_(headers, ['휴대폰', '휴대전화', '전화번호', '학생휴대폰', '학생 휴대폰', '학생전화번호', '학생 전화번호']);
+  if (numberIndex < 0 || nameIndex < 0 || (codeIndex < 0 && phoneIndex < 0)) {
+    throw new Error('“명단” 시트의 첫 행에 번호, 이름과 휴대폰(또는 코드) 열이 필요합니다.');
   }
 
   const candidates = values.slice(1).map(function (row) {
     const number = String(row[numberIndex] || '').trim();
     const name = String(row[nameIndex] || '').trim();
+    const codeSource = phoneIndex >= 0 && String(row[phoneIndex] || '').replace(/\D/g, '').length >= 4
+      ? row[phoneIndex]
+      : (codeIndex >= 0 ? row[codeIndex] : '');
     return {
       student_id: studentId_({ number: number }),
       number: number,
       name: name,
-      personal_code: normalizeStudentCode_(row[codeIndex]),
+      personal_code: makeStudentCode_(number, codeSource),
     };
   }).filter(function (student) {
     return student.student_id && student.number && student.name;
@@ -719,7 +728,7 @@ function importLegacyStudents_() {
       name: student.name,
       personal_code: student.personal_code,
       active: 'TRUE',
-      note: '기존 명단에서 가져옴',
+      note: '번호+휴대폰 뒤 4자리로 재구성',
     });
   });
 
@@ -909,8 +918,10 @@ function ensureClassPlannerSheets_() {
 }
 
 function applyValidations_(ss) {
+  const students = ss.getSheetByName(APP.sheets.students);
   const planner = ss.getSheetByName(APP.sheets.planner);
   const notices = ss.getSheetByName(APP.sheets.notices);
+  if (students) students.getRange('D2:D').setNumberFormat('@');
   if (planner) {
     planner.getRange('C2:C').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.categories, true).build());
     planner.getRange('J2:J').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.plannerStatuses, true).build());
@@ -1040,9 +1051,30 @@ function sha256_(value) {
 }
 
 function normalizeStudentCode_(value) {
-  let digits = String(value || '').replace(/\D/g, '');
-  if (digits && digits.length < 6) digits = ('000000' + digits).slice(-6);
-  return digits;
+  const digits = String(value || '').replace(/\D/g, '');
+  return /^\d{6}$/.test(digits) ? digits : '';
+}
+
+function makeStudentCode_(number, phone) {
+  const parsedNumber = Number(String(number || '').replace(/\D/g, ''));
+  const phoneDigits = String(phone || '').replace(/\D/g, '');
+  if (!Number.isInteger(parsedNumber) || parsedNumber < 1 || parsedNumber > 99 || phoneDigits.length < 4) return '';
+  return ('0' + parsedNumber).slice(-2) + phoneDigits.slice(-4);
+}
+
+function validStudentCode_(student) {
+  const code = normalizeStudentCode_(student && student.personal_code);
+  const parsedNumber = Number(String(student && student.number || '').replace(/\D/g, ''));
+  if (!code || !Number.isInteger(parsedNumber) || parsedNumber < 1 || parsedNumber > 99) return false;
+  return code.slice(0, 2) === ('0' + parsedNumber).slice(-2);
+}
+
+function findHeaderIndex_(headers, candidates) {
+  for (let i = 0; i < candidates.length; i += 1) {
+    const index = headers.indexOf(candidates[i]);
+    if (index >= 0) return index;
+  }
+  return -1;
 }
 
 function splitIds_(value) {

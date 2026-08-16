@@ -31,8 +31,8 @@ test('health only reports whether secrets are configured', async () => {
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.oauthConfigured, true);
-    assert.equal(body.promptVersion, 6);
-    assert.equal(body.buildRevision, 'attachment-content-tables-v6');
+    assert.equal(body.promptVersion, 7);
+    assert.equal(body.buildRevision, 'long-attachments-student-codes-v7');
     assert.equal(JSON.stringify(body).includes('test-oauth-value'), false);
   });
 });
@@ -186,7 +186,7 @@ test('allows additional Claude turns when reading an attachment', async () => {
       return child;
     },
   });
-  assert.equal(capturedArgs[capturedArgs.indexOf('--max-turns') + 1], '6');
+  assert.equal(capturedArgs[capturedArgs.indexOf('--max-turns') + 1], '8');
   assert.match(received, /첨부파일 1개가 있습니다/);
   assert.match(received, /\.\/attachment-1-/);
   assert.deepEqual(result.recognizedFiles, [{ name: '안내.txt', method: '텍스트 읽기' }]);

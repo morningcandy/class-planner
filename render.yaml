@@ -17,6 +17,8 @@ services:
         value: https://morningcandy.github.io
       - key: CLAUDE_MODEL
         value: sonnet
+      - key: CLAUDE_TIMEOUT_MS
+        value: 280000
       - key: CLAUDE_CODE_OAUTH_TOKEN
         sync: false
       - key: CLAUDE_BRIDGE_ACCESS_KEY

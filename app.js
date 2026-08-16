@@ -128,7 +128,7 @@
   async function bridgeRequest(pathname, options = {}) {
     const { url, key } = saveBridgeSettings();
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 150000);
+    const timeout = setTimeout(() => controller.abort(), 330000);
     try {
       const response = await fetch(`${url}${pathname}`, {
         method: options.method || 'POST',
@@ -142,7 +142,7 @@
       if (!response.ok || !result.ok) throw new Error(result.error || `Claude 브리지 오류 (${response.status})`);
       return result;
     } catch (error) {
-      if (error?.name === 'AbortError') throw new Error('Claude 응답 시간이 초과되었습니다.');
+      if (error?.name === 'AbortError') throw new Error('Claude 응답이 5분 안에 끝나지 않았습니다. 첨부파일 수나 크기를 줄여 다시 시도해주세요.');
       throw error;
     } finally {
       clearTimeout(timeout);

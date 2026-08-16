@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { mergeFiles } = require('../attachment-utils');
 
 function file(name, size, lastModified) {
@@ -21,4 +23,9 @@ test('deduplicates a file selected twice and preserves the current list on error
   const invalid = mergeFiles(current, [file('실행파일.exe', 10, 2)]);
   assert.deepEqual(invalid.files, current);
   assert.match(invalid.error, /지원 형식/);
+});
+
+test('keeps the browser request open longer than the bridge maximum runtime', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  assert.match(source, /controller\.abort\(\), 330000/);
 });
