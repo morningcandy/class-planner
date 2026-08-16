@@ -166,6 +166,24 @@ function getAdminData_() {
 function ingest_(rawText, usePreparedText) {
   rawText = String(rawText || '').trim();
   if (!rawText) throw new Error('정리할 내용을 입력해주세요.');
+  const blocks = splitCommandBlocks_(rawText);
+  const results = blocks.map(function (block) { return ingestSingle_(block, usePreparedText); });
+  if (results.length === 1) return results[0];
+
+  const combined = { ok: true, inputIds: [], plannerItems: [], notices: [], warning: '' };
+  results.forEach(function (result) {
+    combined.inputIds.push(result.inputId);
+    combined.plannerItems = combined.plannerItems.concat(result.plannerItems || []);
+    combined.notices = combined.notices.concat(result.notices || []);
+    if (result.warning) combined.warning = [combined.warning, result.warning].filter(Boolean).join(' / ');
+  });
+  combined.inputId = combined.inputIds[0] || '';
+  return combined;
+}
+
+function ingestSingle_(rawText, usePreparedText) {
+  rawText = String(rawText || '').trim();
+  if (!rawText) throw new Error('정리할 내용을 입력해주세요.');
 
   const command = parseCommand_(rawText);
   const inputId = id_('I');
@@ -257,6 +275,29 @@ function ingest_(rawText, usePreparedText) {
     notices: noticeRows,
     warning: warning,
   };
+}
+
+function splitCommandBlocks_(rawText) {
+  const lines = String(rawText || '').replace(/\r\n/g, '\n').split('\n');
+  const blocks = [];
+  let current = [];
+  lines.forEach(function (line) {
+    const startsCommand = /^\s*\/공지사항\s*\[[^\]]+\]/i.test(line);
+    if (startsCommand && current.some(function (value) { return String(value).trim(); })) {
+      blocks.push(current.join('\n').replace(/\n?\s*---\s*$/, '').trim());
+      current = [];
+    }
+    if (/^\s*---\s*$/.test(line)) {
+      if (current.some(function (value) { return String(value).trim(); })) {
+        blocks.push(current.join('\n').trim());
+        current = [];
+      }
+      return;
+    }
+    current.push(line);
+  });
+  if (current.some(function (value) { return String(value).trim(); })) blocks.push(current.join('\n').trim());
+  return blocks.filter(Boolean);
 }
 
 function parseCommand_(rawText) {
@@ -378,31 +419,57 @@ function fallbackAnalysis_(command) {
   const lines = command.content.split(/\r?\n/).map(function (line) { return line.trim(); }).filter(Boolean);
   const title = String(lines[0] || command.content).replace(/^[-•]\s*/, '').slice(0, 70);
   const date = extractDate_(command.content);
-  const looksLikeTask = /(제출|신청|준비(?:물|해|하|하기)|가져오|지참|작성|과제|숙제|마감)/.test(command.content);
-  const notices = command.noticeScope ? [{
-    scope: command.noticeScope,
-    targetNames: command.targetNames,
-    title: title,
-    content: command.content,
-    noticeDate: today_(),
-    dueDate: date,
-    endsAt: date,
-    urgent: /(긴급|중요|필수)/.test(command.content),
-    noticeType: looksLikeTask ? '할일' : '공지',
-  }] : [];
-  return {
-    plannerItems: [{
+  const checklist = extractChecklistEntries_(command.content);
+  const splitEntries = checklist.length >= 2 ? checklist : [];
+  const entries = splitEntries.length ? splitEntries : [title];
+  const context = splitEntries.length
+    ? lines.filter(function (line) { return !checklistEntry_(line); }).join('\n')
+    : command.content;
+  const plannerItems = entries.map(function (entry) {
+    const entryDate = extractDate_(entry) || date;
+    const looksLikeTask = splitEntries.length > 0 || taskLike_(entry);
+    return {
       category: command.category,
       itemType: looksLikeTask ? '업무' : '일정',
-      title: title,
-      date: looksLikeTask ? '' : date,
-      dueDate: looksLikeTask ? date : '',
-      note: command.content,
+      title: String(entry).slice(0, 70),
+      date: looksLikeTask ? '' : entryDate,
+      dueDate: looksLikeTask ? entryDate : '',
+      note: splitEntries.length ? [context, entry].filter(Boolean).join('\n') : command.content,
       priority: /(긴급|중요|필수)/.test(command.content) ? '높음' : '보통',
-    }],
+    };
+  });
+  const notices = command.noticeScope ? entries.map(function (entry) {
+    const entryDate = extractDate_(entry) || date;
+    return {
+      scope: command.noticeScope,
+      targetNames: command.targetNames,
+      title: String(entry).slice(0, 70),
+      content: splitEntries.length ? [context, entry].filter(Boolean).join('\n') : command.content,
+      noticeDate: today_(),
+      dueDate: entryDate,
+      endsAt: entryDate,
+      urgent: /(긴급|중요|필수)/.test(command.content),
+      noticeType: taskLike_(entry) ? '할일' : '공지',
+    };
+  }) : [];
+  return {
+    plannerItems: plannerItems,
     notices: notices,
     warnings: date ? [] : ['날짜를 자동으로 확정하지 못했습니다.'],
   };
+}
+
+function checklistEntry_(line) {
+  const match = String(line || '').match(/^\s*(?:\d{1,2}[.)]|[-•])\s*(.+)$/);
+  return match ? match[1].trim() : '';
+}
+
+function extractChecklistEntries_(text) {
+  return String(text || '').split(/\r?\n/).map(checklistEntry_).filter(Boolean);
+}
+
+function taskLike_(text) {
+  return /(제출|신청|준비(?:물|해|하|하기)|가져오|지참|작성|과제|숙제|마감)/.test(String(text || ''));
 }
 
 /** 명령어가 최종 공개 범위를 결정하며 AI가 이를 바꿀 수 없다. */

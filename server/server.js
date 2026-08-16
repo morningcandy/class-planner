@@ -14,6 +14,7 @@ const MAX_HISTORY_CHARS = 24000;
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 10;
+const PROMPT_VERSION = 2;
 
 const RESPONSE_SCHEMA = JSON.stringify({
   type: 'object',
@@ -37,6 +38,10 @@ applyText 첫 줄은 반드시 다음 중 하나여야 합니다.
 /공지사항 [학생개별: 학생이름]
 그 아래에는 제목과 전달 내용을 자연스럽게 작성하세요. 사용자가 제공하지 않은 날짜, 학생 이름, 사실은 만들지 마세요.
 전체 학생에게 알려야 하면 학급, 교과 수업 관련이면 교과, 교사만 볼 업무면 개인, 특정 학생만 대상이면 학생개별을 선택하세요.
+서로 독립적으로 확인하거나 완료할 수 있는 일정·업무·번호 목록은 반드시 항목별로 나누세요.
+각 항목마다 /공지사항 [...] 명령을 다시 쓰고 항목 사이에는 --- 한 줄을 넣으세요. 공통 날짜와 필요한 맥락은 각 항목에 반복하세요.
+교직원회의처럼 학생에게 알릴 필요가 없는 교사 업무는 [개인]으로, 학생에게 안내할 내용만 [학급] 또는 [학생개별]로 분류하세요.
+단순한 설명 문단은 별도 체크 항목으로 만들지 말고 관련 항목의 맥락으로 포함하세요.
 단순 질문이나 추가 정보가 필요한 경우 canApply는 false이고 applyText는 빈 문자열이어야 합니다.
 응답은 지정된 JSON 스키마만 따르세요.`;
 
@@ -231,6 +236,7 @@ function createServer(options = {}) {
         oauthConfigured: !!process.env.CLAUDE_CODE_OAUTH_TOKEN,
         accessKeyConfigured: !!process.env.CLAUDE_BRIDGE_ACCESS_KEY,
         model: process.env.CLAUDE_MODEL || 'sonnet',
+        promptVersion: PROMPT_VERSION,
       }, origin);
     }
     if (request.method !== 'POST' || (url.pathname !== '/api/claude' && url.pathname !== '/api/auth-check')) {
@@ -279,4 +285,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createServer, buildPrompt, normalizeMessages, parseClaudeOutput, safeEqual };
+module.exports = { createServer, buildPrompt, normalizeMessages, parseClaudeOutput, safeEqual, SYSTEM_PROMPT };

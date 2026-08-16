@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createServer, normalizeMessages, parseClaudeOutput } = require('../server');
+const { createServer, normalizeMessages, parseClaudeOutput, SYSTEM_PROMPT } = require('../server');
 
 async function withServer(run) {
   const server = createServer({
@@ -25,6 +25,7 @@ test('health only reports whether secrets are configured', async () => {
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.oauthConfigured, true);
+    assert.equal(body.promptVersion, 2);
     assert.equal(JSON.stringify(body).includes('test-oauth-value'), false);
   });
 });
@@ -77,4 +78,10 @@ test('normalizes history and parses Claude envelopes', () => {
   assert.deepEqual(normalizeMessages([{ role: 'assistant', content: '좋습니다.' }]), [{ role: 'assistant', content: '좋습니다.' }]);
   const parsed = parseClaudeOutput(JSON.stringify({ structured_output: { reply: '완료', canApply: false, applyText: '' } }));
   assert.deepEqual(parsed, { reply: '완료', canApply: false, applyText: '' });
+});
+
+test('instructs Claude to split independent checklist items', () => {
+  assert.match(SYSTEM_PROMPT, /항목별로 나누세요/);
+  assert.match(SYSTEM_PROMPT, /항목 사이에는 ---/);
+  assert.match(SYSTEM_PROMPT, /학생에게 알릴 필요가 없는 교사 업무는 \[개인\]/);
 });
