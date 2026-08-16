@@ -697,13 +697,10 @@
   $('newClaudeChatBtn').addEventListener('click', resetClaudeChat);
 
   $('claudeFiles').addEventListener('change', () => {
-    const selected = [...$('claudeFiles').files];
-    const allowed = /\.(pdf|xlsx|csv|txt|png|jpe?g|webp|gif)$/i;
-    const invalid = selected.find((file) => !allowed.test(file.name) || file.size > 6 * 1024 * 1024);
-    if (selected.length > 5) return showToast('첨부파일은 최대 5개까지 가능합니다.');
-    if (invalid) return showToast(`${invalid.name}: 지원 형식과 6MB 제한을 확인해주세요.`);
-    if (selected.reduce((sum, file) => sum + file.size, 0) > 15 * 1024 * 1024) return showToast('첨부파일 전체 크기는 15MB 이하여야 합니다.');
-    state.claudeFiles = selected;
+    const result = window.ClassPlannerAttachments.mergeFiles(state.claudeFiles, $('claudeFiles').files);
+    $('claudeFiles').value = '';
+    if (result.error) return showToast(result.error);
+    state.claudeFiles = result.files;
     renderClaudeFiles();
   });
   $('claudeFileList').addEventListener('click', (event) => {
@@ -729,7 +726,10 @@
     try {
       const attachments = await Promise.all(files.map(filePayload));
       const result = await bridgeRequest('/api/claude', { body: { prompt, messages: history, files: attachments } });
-      state.claudeMessages.push({ role: 'assistant', content: result.reply || '요청을 처리했습니다.' });
+      const recognized = Array.isArray(result.recognizedFiles) && result.recognizedFiles.length
+        ? `\n\n첨부 인식 완료: ${result.recognizedFiles.map((file) => `${file.name} (${file.method})`).join(', ')}`
+        : '';
+      state.claudeMessages.push({ role: 'assistant', content: `${result.reply || '요청을 처리했습니다.'}${recognized}` });
       setClaudeState('Claude 연결됨', 'connected');
       if (result.canApply && result.applyText) {
         state.claudeDraft = result.applyText;

@@ -85,7 +85,7 @@
         <div class="attachment-row">
           <label class="attachment-button" for="claudeFiles">＋ 파일 첨부</label>
           <input id="claudeFiles" type="file" multiple accept=".pdf,.xlsx,.csv,.txt,image/png,image/jpeg,image/webp,image/gif">
-          <span class="muted">PDF·Excel(.xlsx)·CSV·텍스트·이미지, 파일당 6MB / 최대 5개</span>
+          <span class="muted">PDF·Excel(.xlsx)·CSV·텍스트·이미지, 파일당 6MB / 최대 5개 · 여러 번 선택해도 기존 파일 유지</span>
         </div>
         <div class="attachment-list hidden" id="claudeFileList"></div>
         <div class="command-row" aria-label="명령어 예시">
@@ -236,6 +236,7 @@
   <div class="toast hidden" id="toast" role="status"></div>
   <script src="../class-notice/data.js"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=20260816-calendar1"></script>
+  <script src="attachment-utils.js?v=20260816-files1"></script>
+  <script src="app.js?v=20260816-files1"></script>
 </body>
 </html>

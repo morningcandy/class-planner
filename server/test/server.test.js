@@ -8,7 +8,7 @@ const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { PassThrough, Writable } = require('node:stream');
 const ExcelJS = require('exceljs');
-const { createServer, normalizeMessages, parseClaudeOutput, prepareAttachments, extractClaudeFailure, runClaude, SYSTEM_PROMPT } = require('../server');
+const { createServer, normalizeMessages, parseClaudeOutput, prepareAttachments, recognizedFiles, extractClaudeFailure, runClaude, SYSTEM_PROMPT } = require('../server');
 
 async function withServer(run) {
   const server = createServer({
@@ -31,8 +31,8 @@ test('health only reports whether secrets are configured', async () => {
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.oauthConfigured, true);
-    assert.equal(body.promptVersion, 5);
-    assert.equal(body.buildRevision, 'attachment-turns-errors-v5');
+    assert.equal(body.promptVersion, 6);
+    assert.equal(body.buildRevision, 'attachment-content-tables-v6');
     assert.equal(JSON.stringify(body).includes('test-oauth-value'), false);
   });
 });
@@ -83,19 +83,21 @@ test('blocks unapproved browser origins', async () => {
 
 test('normalizes history and parses Claude envelopes', () => {
   assert.deepEqual(normalizeMessages([{ role: 'assistant', content: '좋습니다.' }]), [{ role: 'assistant', content: '좋습니다.' }]);
-  const parsed = parseClaudeOutput(JSON.stringify({ structured_output: { reply: '완료', canApply: false, items: [] } }));
-  assert.deepEqual(parsed, { reply: '완료', canApply: false, applyText: '', items: [] });
+  const parsed = parseClaudeOutput(JSON.stringify({ structured_output: { reply: '완료', canApply: false, items: [], readFiles: [] } }));
+  assert.deepEqual(parsed, { reply: '완료', canApply: false, applyText: '', items: [], readFiles: [] });
 });
 
 test('instructs Claude to split independent checklist items', () => {
   assert.match(SYSTEM_PROMPT, /별도 items 원소로 나누세요/);
   assert.match(SYSTEM_PROMPT, /학생에게 알릴 필요가 없는 교사 업무는 \[개인\]/);
+  assert.match(SYSTEM_PROMPT, /다운로드 링크를 학생에게 제공하지 말고/);
+  assert.match(SYSTEM_PROMPT, /마크다운 표/);
 });
 
 test('converts structured items into deterministic apply blocks', () => {
   const parsed = parseClaudeOutput(JSON.stringify({ structured_output: {
     reply: '두 항목으로 정리했습니다.', canApply: true,
-    items: [
+    readFiles: [], items: [
       { scope: '학급', targets: [], title: '학생 등교', content: '8월 18일 08시까지' },
       { scope: '개인', targets: [], title: '교직원회의', content: '8월 18일 08시 10분' },
     ],
@@ -122,6 +124,26 @@ test('converts an xlsx attachment into readable text', async () => {
   }
 });
 
+test('recognizes PDF and image attachments with explicit reading methods', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'planner-document-test-'));
+  try {
+    const files = [
+      { name: '가정통신문.pdf', data: Buffer.from('%PDF-1.4 test').toString('base64') },
+      { name: '시간표.jpg', data: Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64') },
+    ];
+    const context = await prepareAttachments(dir, files);
+    assert.match(context, /첨부파일 2개/);
+    assert.match(context, /하나씩 모두 Read/);
+    assert.deepEqual(recognizedFiles(files), [
+      { name: '가정통신문.pdf', method: 'PDF 문서 읽기' },
+      { name: '시간표.jpg', method: '이미지 내용 읽기' },
+    ]);
+    assert.equal(fs.readdirSync(dir).length, 2);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('writes the Claude prompt to stdin instead of waiting for piped input', async () => {
   let received = '';
   let capturedArgs = [];
@@ -134,7 +156,7 @@ test('writes the Claude prompt to stdin instead of waiting for piped input', asy
       child.stdin = new Writable({ write(chunk, _encoding, done) { received += chunk.toString('utf8'); done(); } });
       child.kill = () => {};
       child.stdin.on('finish', () => {
-        child.stdout.end(JSON.stringify({ structured_output: { reply: '완료', canApply: false, items: [] } }));
+        child.stdout.end(JSON.stringify({ structured_output: { reply: '완료', canApply: false, items: [], readFiles: [] } }));
         setImmediate(() => child.emit('close', 0));
       });
       return child;
@@ -149,7 +171,7 @@ test('writes the Claude prompt to stdin instead of waiting for piped input', asy
 test('allows additional Claude turns when reading an attachment', async () => {
   let received = '';
   let capturedArgs = [];
-  await runClaude('첨부파일 정리', [{ name: '안내.txt', data: Buffer.from('개학 안내').toString('base64') }], {
+  const result = await runClaude('첨부파일 정리', [{ name: '안내.txt', data: Buffer.from('개학 안내').toString('base64') }], {
     spawnProcess: (_executable, args) => {
       capturedArgs = args;
       const child = new EventEmitter();
@@ -158,15 +180,33 @@ test('allows additional Claude turns when reading an attachment', async () => {
       child.stdin = new Writable({ write(chunk, _encoding, done) { received += chunk.toString('utf8'); done(); } });
       child.kill = () => {};
       child.stdin.on('finish', () => {
-        child.stdout.end(JSON.stringify({ structured_output: { reply: '완료', canApply: false, items: [] } }));
+        child.stdout.end(JSON.stringify({ structured_output: { reply: '완료', canApply: false, items: [], readFiles: ['안내.txt'] } }));
         setImmediate(() => child.emit('close', 0));
       });
       return child;
     },
   });
   assert.equal(capturedArgs[capturedArgs.indexOf('--max-turns') + 1], '6');
-  assert.match(received, /첨부파일이 있습니다/);
+  assert.match(received, /첨부파일 1개가 있습니다/);
   assert.match(received, /\.\/attachment-1-/);
+  assert.deepEqual(result.recognizedFiles, [{ name: '안내.txt', method: '텍스트 읽기' }]);
+});
+
+test('rejects a Claude result that did not confirm every attachment was read', async () => {
+  await assert.rejects(() => runClaude('첨부파일 정리', [{ name: '누락.pdf', data: Buffer.from('%PDF-1.4').toString('base64') }], {
+    spawnProcess: () => {
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.stdin = new Writable({ write(_chunk, _encoding, done) { done(); } });
+      child.kill = () => {};
+      child.stdin.on('finish', () => {
+        child.stdout.end(JSON.stringify({ structured_output: { reply: '완료', canApply: false, items: [], readFiles: [] } }));
+        setImmediate(() => child.emit('close', 0));
+      });
+      return child;
+    },
+  }), /읽었다고 확인하지 못했습니다: 누락.pdf/);
 });
 
 test('extracts a safe Claude CLI failure from JSON stdout', () => {

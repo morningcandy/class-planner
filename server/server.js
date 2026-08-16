@@ -18,8 +18,8 @@ const MAX_HISTORY_CHARS = 24000;
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 10;
-const PROMPT_VERSION = 5;
-const BUILD_REVISION = 'attachment-turns-errors-v5';
+const PROMPT_VERSION = 6;
+const BUILD_REVISION = 'attachment-content-tables-v6';
 
 const RESPONSE_SCHEMA = JSON.stringify({
   type: 'object',
@@ -41,8 +41,9 @@ const RESPONSE_SCHEMA = JSON.stringify({
         required: ['scope', 'targets', 'title', 'content'],
       },
     },
+    readFiles: { type: 'array', items: { type: 'string' } },
   },
-  required: ['reply', 'canApply', 'items'],
+  required: ['reply', 'canApply', 'items', 'readFiles'],
 });
 
 const SYSTEM_PROMPT = `당신은 한국 고등학교 담임교사의 개인 알림장 정리 도우미입니다.
@@ -55,6 +56,11 @@ const SYSTEM_PROMPT = `당신은 한국 고등학교 담임교사의 개인 알�
 서로 독립적으로 확인하거나 완료할 수 있는 일정·업무·번호 목록은 반드시 별도 items 원소로 나누세요. 공통 날짜와 필요한 맥락은 각 원소에 반복하세요.
 교직원회의처럼 학생에게 알릴 필요가 없는 교사 업무는 [개인]으로, 학생에게 안내할 내용만 [학급] 또는 [학생개별]로 분류하세요.
 단순한 설명 문단은 별도 체크 항목으로 만들지 말고 관련 항목의 맥락으로 포함하세요.
+첨부파일이 있으면 모든 파일을 빠짐없이 Read로 읽고, 파일명만 보고 추측하지 마세요.
+첨부파일 자체나 다운로드 링크를 학생에게 제공하지 말고 파일에서 읽은 내용을 title과 content에 옮겨 정리하세요.
+시간표·일정표처럼 행과 열이 있는 자료는 학생용 content에 마크다운 표(| 열 | 열 | 형식)를 넣어 원래 행·열 관계를 보존하세요.
+표의 각 셀은 원문에 있는 내용만 사용하고, 읽기 어렵거나 확정할 수 없는 값은 추측하지 말고 reply에서 교사에게 확인을 요청하세요.
+첨부파일을 실제로 Read한 뒤에만 그 원래 파일명을 readFiles 배열에 넣으세요. 첨부가 없으면 빈 배열로 두세요.
 학생개별이면 targets에 대상 학생 이름을 넣고, 그 외에는 targets를 빈 배열로 두세요.
 단순 질문이나 추가 정보가 필요한 경우 canApply는 false이고 items는 빈 배열이어야 합니다.
 응답은 지정된 JSON 스키마만 따르세요.`;
@@ -175,6 +181,7 @@ function parseClaudeOutput(stdout) {
     canApply: result.canApply === true && !!applyText,
     applyText,
     items,
+    readFiles: Array.isArray(result.readFiles) ? result.readFiles.map((value) => path.basename(String(value || '').trim())).filter(Boolean) : [],
   };
 }
 
@@ -230,7 +237,11 @@ async function prepareAttachments(tempDir, files) {
       const rows = [];
       workbook.eachSheet((sheet) => {
         rows.push(`[시트: ${sheet.name}]`);
-        sheet.eachRow((row) => rows.push(row.values.slice(1).map((value) => String(value ?? '')).join('\t')));
+        sheet.eachRow((row) => {
+          const values = [];
+          for (let column = 1; column <= row.cellCount; column += 1) values.push(row.getCell(column).text);
+          rows.push(values.join('\t'));
+        });
       });
       const target = `${safeBase}-${original.replace(/[^0-9A-Za-z가-힣._-]/g, '_')}.txt`;
       fs.writeFileSync(path.join(tempDir, target), rows.join('\n').slice(0, 500000), 'utf8');
@@ -241,7 +252,18 @@ async function prepareAttachments(tempDir, files) {
       references.push(`${original} (./${target})`);
     }
   }
-  return `\n\n첨부파일이 있습니다. Read 도구로 아래 파일만 읽고 교사의 요청과 함께 정리하세요.\n${references.map((value) => `- ${value}`).join('\n')}`;
+  return `\n\n첨부파일 ${references.length}개가 있습니다. 아래 파일을 하나씩 모두 Read한 뒤 내용을 확인하여 교사의 요청과 함께 정리하세요. 파일을 읽지 않고 이름만으로 추측해서는 안 됩니다.\n${references.map((value, index) => `${index + 1}. ${value}`).join('\n')}\n시간표·일정표 등 격자 자료는 학생에게 파일 링크를 주지 말고 content 안에 마크다운 표로 옮기세요.`;
+}
+
+function recognizedFiles(files) {
+  return (Array.isArray(files) ? files : []).map((file) => {
+    const name = path.basename(String(file && file.name || '첨부파일'));
+    const ext = path.extname(name).toLowerCase();
+    return {
+      name,
+      method: ext === '.xlsx' ? '표·셀 텍스트 변환' : (ext === '.pdf' ? 'PDF 문서 읽기' : (/^\.(png|jpe?g|webp|gif)$/.test(ext) ? '이미지 내용 읽기' : '텍스트 읽기')),
+    };
+  });
 }
 
 async function runClaude(prompt, files = [], options = {}) {
@@ -312,7 +334,19 @@ async function runClaude(prompt, files = [], options = {}) {
         );
         return finish(new Error(detail));
       }
-      try { finish(null, parseClaudeOutput(Buffer.concat(stdout).toString('utf8'))); }
+      try {
+        const parsed = parseClaudeOutput(Buffer.concat(stdout).toString('utf8'));
+        const expectedFiles = recognizedFiles(files);
+        const reported = new Set(parsed.readFiles);
+        const unread = expectedFiles.filter((file) => !reported.has(file.name));
+        if (unread.length) {
+          return finish(new Error(`Claude가 다음 첨부파일을 읽었다고 확인하지 못했습니다: ${unread.map((file) => file.name).join(', ')}`));
+        }
+        finish(null, {
+          ...parsed,
+          recognizedFiles: expectedFiles,
+        });
+      }
       catch (error) { finish(error); }
     });
     child.stdin.end(userInput);
@@ -392,4 +426,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createServer, buildPrompt, normalizeMessages, parseClaudeOutput, safeEqual, prepareAttachments, extractClaudeFailure, runClaude, SYSTEM_PROMPT };
+module.exports = { createServer, buildPrompt, normalizeMessages, parseClaudeOutput, safeEqual, prepareAttachments, recognizedFiles, extractClaudeFailure, runClaude, SYSTEM_PROMPT };
