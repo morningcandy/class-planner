@@ -41,7 +41,7 @@
 | 학급 알림장 | `https://morningcandy.github.io/class-notice/` | 학생 공지·할 일 표시 | 배포됨, HTTP 200 확인 |
 | 학급 관리자 | `https://morningcandy.github.io/class-notice/admin/` | 공지 수정·게시·보류·종료 | 배포됨, HTTP 200 확인 |
 | Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 5 배포 확인 |
-| Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 9, 공지 종료일 검증 완료 |
+| Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 10, 공지 순서 저장·공개 검증 완료 |
 | Google Sheets | 교사 개인 스프레드시트 | 모든 업무·공지·응답의 원본 | 앱 전용 탭 6개 초기화 완료 |
 
 ## 4. 데이터 흐름
@@ -79,7 +79,7 @@ Claude 연결을 사용할 수 없을 때는 교사가 `/공지사항 [...]` 명
 | `앱_학생목록` | 학생 ID, 번호, 이름, 개인 코드, 활성 여부 |
 | `앱_입력함` | 원문, 명령, 분석 결과, 처리 상태, 경고 |
 | `앱_개인알림장` | 분류, 유형, 제목, 날짜, 마감일, 우선순위, 상태 |
-| `앱_공지사항` | 공개 범위, 대상 학생, 내용, 날짜, 상태, 게시 시각 |
+| `앱_공지사항` | 공개 범위, 대상 학생, 내용, 날짜, 상태, 게시 시각, 관리자 지정 순서(`sort_order`) |
 | `앱_학생응답` | 학생별 확인·완료 응답 |
 | `앱_변경기록` | 관리자 변경 감사 기록 |
 
@@ -105,7 +105,7 @@ Claude 연결을 사용할 수 없을 때는 교사가 `/공지사항 [...]` 명
 - `importLegacyPlanner`
 - `importLegacyStudents`
 - `upsertPlannerItem`, `setPlannerStatus`, `deletePlannerItem`
-- `createNotice`, `updateNotice`, `setNoticeStatus`
+- `createNotice`, `updateNotice`, `setNoticeStatus`, `reorderNotices`
 
 브라우저의 CORS 사전 요청을 피하기 위해 Apps Script POST 본문은 JSON 문자열을 `text/plain`으로 전송한다.
 
@@ -146,6 +146,7 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - 독립된 일정·업무는 명령 블록 또는 번호 목록 기준으로 분리해 항목별 완료 체크와 개별 공지 검토가 가능해야 한다.
 - Claude의 자유형 문자열에 의존하지 않고 `items[]` 구조화 출력으로 분리 단위를 강제한다.
 - 첨부파일은 요청별 임시 폴더에서만 처리하고 완료·실패 시 삭제한다.
+- 검토함에서 정한 공지 순서는 Google Sheets에 저장하며 상태가 `검토대기 → 게시됨`으로 바뀌어도 유지한다.
 
 ## 구현된 내용
 
@@ -177,6 +178,7 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [x] Claude CLI 프롬프트를 표준입력으로 명시 전달해 stdin 대기 경고 제거
 - [x] Apps Script 지연을 고려한 90초 대기, 삭제 직후 화면 반영, 멱등 삭제 응답 구현
 - [x] 학급의 현재 안내 통합 목록과 종료일 다음 날 지난 공지 자동 이동
+- [x] 학급 알림장 검토함의 위·아래 순서 변경과 학생 화면 동일 순서 반영
 
 ## 남은 개발 항목
 
@@ -188,6 +190,24 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [ ] **P2** Google Sheets 백업 주기와 Render·Apps Script 장애 대응 절차를 정한다.
 
 ## 최근 작업
+
+### 2026-08-16 — 검토함 공지 순서 변경 및 학생 화면 연계
+
+- 확인한 문제
+  - 검토함은 생성 시각, 학생 화면은 중요도·날짜로 각각 다시 정렬해 교사가 원하는 전달 순서를 지정할 수 없었음
+- 개발 내용
+  - 검토함 각 카드에 현재 순번과 `위로`·`아래로` 이동 버튼 추가
+  - `앱_공지사항.sort_order`와 `reorderNotices` 관리자 API를 추가해 순서를 Google Sheets에 영구 저장
+  - 기존 시트는 첫 순서 저장 시 현재 표시 순서를 기준으로 자동 순번 부여
+  - 공지 상태가 게시됨으로 바뀌어도 순서를 유지하고 학생 API에 `sortOrder` 반환
+  - 학생 화면은 중요도·날짜보다 관리자 지정 순서를 우선 적용
+- 검증
+  - 관리자 지정 순서 우선 정렬을 포함한 학생 공지 로직 테스트 4개 통과
+  - 운영 Apps Script 버전 10 배포
+  - 점검 공지 3건을 `등교시간 안내 → 개학식 및 대청소 → 정상수업 시작`으로 저장·게시한 결과 공개 API가 `sortOrder 10 → 20 → 30`과 같은 제목 순서로 반환
+  - 점검 공지 3건은 검증 후 모두 종료 처리
+- 가장 명확한 다음 단계
+  - 실제 공지를 검토함에서 원하는 순서로 정한 뒤 게시해 학생 화면에서 확인한다.
 
 ### 2026-08-16 — 학급 안내 통합 목록 및 종료일 자동 보관
 

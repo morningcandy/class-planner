@@ -18,6 +18,7 @@
     calendarDate: new Date(),
     selectedDate: '',
     loading: false,
+    noticeOrderSaving: false,
     claudeMessages: [],
     claudeDraft: '',
     claudeFiles: [],
@@ -283,7 +284,30 @@
     return names.length ? names.join(', ') : '대상 학생 확인 필요';
   }
 
-  function noticeCard(notice) {
+  function noticeSortValue(notice) {
+    const raw = String(notice?.sort_order ?? '').trim();
+    if (!raw) return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  function compareNoticeOrder(a, b) {
+    const aOrder = noticeSortValue(a);
+    const bOrder = noticeSortValue(b);
+    if (aOrder !== null && bOrder !== null && aOrder !== bOrder) return aOrder - bOrder;
+    if (aOrder !== null && bOrder === null) return -1;
+    if (aOrder === null && bOrder !== null) return 1;
+    return String(b.created_at || '').localeCompare(String(a.created_at || ''))
+      || String(a.notice_id || '').localeCompare(String(b.notice_id || ''));
+  }
+
+  function visibleNotices() {
+    return state.notices
+      .filter((notice) => notice.status === state.noticeStatus)
+      .sort(compareNoticeOrder);
+  }
+
+  function noticeCard(notice, index, total) {
     const classes = ['notice-row'];
     if (notice.scope === '학생개별') classes.push('personal');
     if (notice.status === '게시됨') classes.push('published');
@@ -312,6 +336,9 @@
           <span class="muted" style="font-size:11px">학생 화면에는 ‘게시됨’ 상태만 표시됩니다.</span>
           <span class="spacer"></span>
           <div class="row-actions">
+            <span class="order-number" aria-label="현재 순서">${index + 1}번째</span>
+            <button class="order-button" data-notice-action="move-up" data-id="${escapeHtml(notice.notice_id)}" ${index === 0 || state.noticeOrderSaving ? 'disabled' : ''} aria-label="${escapeHtml(notice.title)} 위로 이동">↑ 위로</button>
+            <button class="order-button" data-notice-action="move-down" data-id="${escapeHtml(notice.notice_id)}" ${index === total - 1 || state.noticeOrderSaving ? 'disabled' : ''} aria-label="${escapeHtml(notice.title)} 아래로 이동">↓ 아래로</button>
             <button data-notice-action="edit" data-id="${escapeHtml(notice.notice_id)}">수정</button>
             ${statusActions}
           </div>
@@ -320,12 +347,33 @@
   }
 
   function renderNotices() {
-    const list = state.notices
-      .filter((notice) => notice.status === state.noticeStatus)
-      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    const list = visibleNotices();
     $('noticeList').innerHTML = list.length
-      ? list.map(noticeCard).join('')
+      ? list.map((notice, index) => noticeCard(notice, index, list.length)).join('')
       : `<div class="empty-state">${escapeHtml(state.noticeStatus)} 상태의 공지가 없습니다.</div>`;
+  }
+
+  async function moveNotice(noticeId, direction) {
+    if (state.noticeOrderSaving) return;
+    const list = visibleNotices();
+    const from = list.findIndex((notice) => String(notice.notice_id) === String(noticeId));
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= list.length) return;
+    [list[from], list[to]] = [list[to], list[from]];
+    list.forEach((notice, index) => { notice.sort_order = (index + 1) * 10; });
+    state.noticeOrderSaving = true;
+    renderNotices();
+    try {
+      await api('reorderNotices', { noticeIds: list.map((notice) => notice.notice_id) });
+      await loadAdminData();
+      showToast('공지 순서를 저장했습니다. 게시 후 학생 화면에도 같은 순서로 표시됩니다.');
+    } catch (error) {
+      await loadAdminData().catch(() => {});
+      throw error;
+    } finally {
+      state.noticeOrderSaving = false;
+      renderNotices();
+    }
   }
 
   function plannerCard(item) {
@@ -711,6 +759,8 @@
     const { noticeAction, id } = button.dataset;
     try {
       if (noticeAction === 'edit') return openNoticeEditor(id);
+      if (noticeAction === 'move-up') return await moveNotice(id, -1);
+      if (noticeAction === 'move-down') return await moveNotice(id, 1);
       if (noticeAction === 'publish') await changeNoticeStatus(id, '게시됨');
       if (noticeAction === 'hold') await changeNoticeStatus(id, '보류');
       if (noticeAction === 'close') await changeNoticeStatus(id, '종료됨');

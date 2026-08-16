@@ -194,6 +194,9 @@ textarea { resize: vertical; line-height: 1.65; }
 .date-label { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .row-actions button { border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #58647b; padding: 7px 9px; font-size: 11px; font-weight: 800; }
+.row-actions button:disabled { cursor: not-allowed; opacity: .38; }
+.row-actions .order-button { background: #f5f7fb; }
+.order-number { align-self: center; color: var(--muted); font-size: 10px; font-weight: 800; }
 .row-actions .publish { border-color: var(--primary); background: var(--primary); color: #fff; }
 .row-actions .hold { color: var(--warning); }
 .row-actions .danger { border-color: #f2c7cd; color: var(--danger); }

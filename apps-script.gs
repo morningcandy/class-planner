@@ -19,7 +19,7 @@ const APP = Object.freeze({
     students: ['student_id', 'number', 'name', 'personal_code', 'active', 'note'],
     inbox: ['input_id', 'received_at', 'command', 'raw_text', 'analysis_json', 'status', 'warning'],
     planner: ['item_id', 'input_id', 'category', 'item_type', 'title', 'date', 'due_date', 'note', 'priority', 'status', 'linked_notice_ids', 'created_at', 'updated_at'],
-    notices: ['notice_id', 'input_id', 'scope', 'target_student_ids', 'title', 'content', 'notice_date', 'due_date', 'urgent', 'notice_type', 'status', 'published_at', 'ends_at', 'created_at', 'updated_at'],
+    notices: ['notice_id', 'input_id', 'scope', 'target_student_ids', 'title', 'content', 'notice_date', 'due_date', 'urgent', 'notice_type', 'status', 'published_at', 'ends_at', 'created_at', 'updated_at', 'sort_order'],
     responses: ['responded_at', 'student_id', 'item_type', 'item_id', 'response'],
     audit: ['changed_at', 'actor', 'action', 'record_type', 'record_id', 'summary'],
   },
@@ -153,6 +153,7 @@ function doPost(e) {
       case 'createNotice': return json_(createNotice_(body.notice || {}));
       case 'updateNotice': return json_(updateNotice_(body.notice || {}));
       case 'setNoticeStatus': return json_(setNoticeStatus_(body.noticeId, body.status));
+      case 'reorderNotices': return json_(reorderNotices_(body.noticeIds || []));
       default: throw new Error('지원하지 않는 요청입니다.');
     }
   } catch (error) {
@@ -251,6 +252,7 @@ function ingestSingle_(rawText, usePreparedText) {
   const noticeRows = [];
   const createdAt = isoNow_();
   const students = readObjects_('students');
+  let nextNoticeOrder = nextNoticeSortOrder_((analysis.notices || []).length);
 
   (analysis.plannerItems || []).forEach(function (item) {
     const row = {
@@ -294,7 +296,9 @@ function ingestSingle_(rawText, usePreparedText) {
       ends_at: notice.endsAt || notice.dueDate || '',
       created_at: createdAt,
       updated_at: createdAt,
+      sort_order: nextNoticeOrder,
     });
+    nextNoticeOrder += 10;
     plannerRows.forEach(function (planner) {
       if (planner.category === '학급') {
         planner.linked_notice_ids = [planner.linked_notice_ids, noticeId].filter(Boolean).join(',');
@@ -571,6 +575,7 @@ function getStudentFeed_(code) {
       id: String(notice.notice_id),
       title: String(notice.title || ''),
       audience: audience,
+      sortOrder: noticeSortValue_(notice),
     };
     if (notice.notice_type === '할일') {
       tasks.push(Object.assign({}, base, { dueDate: String(notice.due_date || notice.notice_date || '') }));
@@ -766,6 +771,7 @@ function createNotice_(notice) {
     ends_at: normalizeDate_(notice.ends_at),
     created_at: now,
     updated_at: now,
+    sort_order: nextNoticeSortOrder_(1),
   };
   if (!row.title) throw new Error('공지 제목을 입력해주세요.');
   upsertObject_('notices', 'notice_id', row);
@@ -809,15 +815,83 @@ function setNoticeStatus_(noticeId, status) {
   return { ok: true };
 }
 
+function noticeSortValue_(notice) {
+  const raw = String(notice && notice.sort_order !== undefined ? notice.sort_order : '').trim();
+  if (!raw) return null;
+  const value = Number(raw);
+  return isFinite(value) ? value : null;
+}
+
+function compareNoticeOrder_(a, b) {
+  const aOrder = noticeSortValue_(a);
+  const bOrder = noticeSortValue_(b);
+  if (aOrder !== null && bOrder !== null && aOrder !== bOrder) return aOrder - bOrder;
+  if (aOrder !== null && bOrder === null) return -1;
+  if (aOrder === null && bOrder !== null) return 1;
+  return String(b.created_at || '').localeCompare(String(a.created_at || ''))
+    || String(a.notice_id || '').localeCompare(String(b.notice_id || ''));
+}
+
+function nextNoticeSortOrder_(count) {
+  const orders = readObjects_('notices').map(noticeSortValue_).filter(function (value) { return value !== null; });
+  if (!orders.length) return 10;
+  return Math.min.apply(null, orders) - (Math.max(1, Number(count) || 1) * 10);
+}
+
+function reorderNotices_(noticeIds) {
+  if (!Array.isArray(noticeIds)) throw new Error('공지 순서 형식을 확인해주세요.');
+  const uniqueIds = [];
+  noticeIds.forEach(function (id) {
+    id = String(id || '').trim();
+    if (id && uniqueIds.indexOf(id) < 0) uniqueIds.push(id);
+  });
+  if (uniqueIds.length < 2) return { ok: true, count: uniqueIds.length };
+  if (uniqueIds.length > 500) throw new Error('한 번에 정렬할 수 있는 공지는 500건입니다.');
+
+  const notices = readObjects_('notices').sort(compareNoticeOrder_);
+  const byId = {};
+  notices.forEach(function (notice) { byId[String(notice.notice_id)] = notice; });
+  const missing = uniqueIds.filter(function (id) { return !byId[id]; });
+  if (missing.length) throw new Error('순서를 바꿀 공지 일부를 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.');
+
+  const targetSet = {};
+  uniqueIds.forEach(function (id) { targetSet[id] = true; });
+  const targetPositions = [];
+  notices.forEach(function (notice, index) {
+    if (targetSet[String(notice.notice_id)]) targetPositions.push(index);
+  });
+  targetPositions.forEach(function (position, index) { notices[position] = byId[uniqueIds[index]]; });
+
+  const orderById = {};
+  notices.forEach(function (notice, index) { orderById[String(notice.notice_id)] = (index + 1) * 10; });
+  const sheet = getSheet_('notices');
+  const idColumn = APP.headers.notices.indexOf('notice_id') + 1;
+  const orderColumn = APP.headers.notices.indexOf('sort_order') + 1;
+  const rowCount = Math.max(0, sheet.getLastRow() - 1);
+  if (rowCount) {
+    const rowIds = sheet.getRange(2, idColumn, rowCount, 1).getDisplayValues();
+    const values = rowIds.map(function (row) {
+      const id = String(row[0] || '');
+      return [orderById[id] === undefined ? '' : orderById[id]];
+    });
+    sheet.getRange(2, orderColumn, rowCount, 1).setValues(values);
+  }
+  audit_('순서변경', '공지사항', '', uniqueIds.join(','));
+  return { ok: true, count: uniqueIds.length };
+}
+
 function ensureSheet_(ss, name, headers) {
   let sheet = ss.getSheetByName(name);
   if (!sheet) sheet = ss.insertSheet(name);
-  const current = sheet.getRange(1, 1, 1, headers.length).getDisplayValues()[0];
-  const hasHeader = current.some(function (value) { return String(value).trim(); });
-  if (hasHeader && current.join('|') !== headers.join('|')) {
+  const width = Math.max(sheet.getLastColumn(), headers.length);
+  const current = sheet.getRange(1, 1, 1, width).getDisplayValues()[0];
+  while (current.length && !String(current[current.length - 1]).trim()) current.pop();
+  const hasHeader = current.length > 0;
+  const isCompatiblePrefix = current.every(function (value, index) { return String(value) === String(headers[index]); });
+  if (hasHeader && (!isCompatiblePrefix || current.length > headers.length)) {
     throw new Error(name + ' 시트의 첫 행 구조가 예상과 다릅니다. 기존 값을 확인해주세요.');
   }
-  if (!hasHeader) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  if (!hasHeader || current.length < headers.length) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   sheet.setFrozenRows(1);
   sheet.getRange(1, 1, 1, headers.length)
     .setBackground('#1f2937')
