@@ -243,6 +243,14 @@ textarea { resize: vertical; line-height: 1.65; }
 .timetable th { background: #f5f7fb; color: #59647b; }
 .timetable td:first-child { font-weight: 800; }
 .timetable .lunch td { background: #fff7ed; color: #9a5a18; }
+.myclass-wrap { overflow-x: auto; }
+.myclass-tt { font-size: 11px; table-layout: fixed; }
+.myclass-tt th, .myclass-tt td { padding: 5px 2px; border-right: 1px solid #edf0f5; word-break: keep-all; }
+.myclass-tt th:last-child, .myclass-tt td:last-child { border-right: 0; }
+.myclass-tt th:first-child, .myclass-tt td:first-child { width: 20px; color: #59647b; }
+.myclass-tt .tt-time { font-size: 9px; color: #8a93a6; font-weight: 600; line-height: 1.15; white-space: nowrap; width: 40px; }
+.myclass-tt td.g { background: #e6f4ea; color: #1f7a45; font-weight: 800; }
+.myclass-tt td.o { background: #fdece0; color: #b5581f; font-weight: 800; }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(17, 25, 48, .48); backdrop-filter: blur(5px); }
 .modal { width: min(100%, 560px); max-height: calc(100vh - 40px); overflow: auto; padding: 22px; border-radius: 20px; background: #fff; box-shadow: var(--shadow); display: grid; gap: 14px; }
