@@ -142,6 +142,7 @@ function doPost(e) {
     ensureClassPlannerSheets_();
     switch (action) {
       case 'adminLoad': return json_(getAdminData_());
+      case 'validateStudentSetup': return json_(validateStudentSetup_());
       case 'ingest': return json_(ingest_(body.rawText));
       case 'ingestPrepared': return json_(ingest_(body.rawText, true));
       case 'importLegacyPlanner': return json_(importLegacyPlanner_(body.items || []));
@@ -179,6 +180,34 @@ function getAdminData_() {
     aiEnabled: !!PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY'),
   };
   return result;
+}
+
+function validateStudentSetup_() {
+  const students = readObjects_('students').filter(isStudentActive_);
+  const codeCounts = {};
+  let withCode = 0;
+  students.forEach(function (student) {
+    const code = normalizeStudentCode_(student.personal_code);
+    if (!code) return;
+    withCode += 1;
+    codeCounts[code] = (codeCounts[code] || 0) + 1;
+  });
+  const duplicateCodes = Object.keys(codeCounts).filter(function (code) { return codeCounts[code] > 1; }).length;
+  const authReady = students.length > 0 && withCode === students.length && duplicateCodes === 0;
+  let loginProbe = false;
+  if (authReady) {
+    const sample = students[0];
+    const feed = getStudentFeed_(sample.personal_code);
+    loginProbe = !!feed.student && Number(feed.student.num) === Number(sample.number);
+  }
+  return {
+    ok: true,
+    activeStudents: students.length,
+    studentsWithCode: withCode,
+    duplicateCodes: duplicateCodes,
+    authReady: authReady,
+    loginProbe: loginProbe,
+  };
 }
 
 function ingest_(rawText, usePreparedText) {

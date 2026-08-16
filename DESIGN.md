@@ -41,7 +41,7 @@
 | 학급 알림장 | `https://morningcandy.github.io/class-notice/` | 학생 공지·할 일 표시 | 배포됨, HTTP 200 확인 |
 | 학급 관리자 | `https://morningcandy.github.io/class-notice/admin/` | 공지 수정·게시·보류·종료 | 배포됨, HTTP 200 확인 |
 | Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, 운영 promptVersion 2·최신 코드 3 재배포 필요 |
-| Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 6, health 확인 완료 |
+| Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 7, health 확인 완료 |
 | Google Sheets | 교사 개인 스프레드시트 | 모든 업무·공지·응답의 원본 | 앱 전용 탭 6개 초기화 완료 |
 
 ## 4. 데이터 흐름
@@ -99,6 +99,7 @@ Claude 연결을 사용할 수 없을 때는 교사가 `/공지사항 [...]` 명
 ### 관리자 작업
 
 - `adminLoad`
+- `validateStudentSetup`
 - `ingest`
 - `ingestPrepared`
 - `importLegacyPlanner`
@@ -192,10 +193,13 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - 개발 내용
   - 기존 `명단` 탭의 `번호`, `이름`, `코드`를 `앱_학생목록`으로 가져오는 관리자 작업과 시트 메뉴 추가
   - 같은 코드가 두 명 이상에게 중복되면 어느 학생으로도 인증하지 않도록 변경
-  - Apps Script 운영 배포를 버전 6으로 갱신
+  - Apps Script 운영 배포를 버전 7로 갱신
 - 검증
   - 기존 명단 28명과 개인코드 28개 이전, 활성 학생 28명 확인
   - 중복 개인코드 0개 확인
+  - 관리자 전용 진단이 실제 학생 코드 한 건으로 로그인 경로를 검사하되 코드 원문은 반환하지 않음
+  - `authReady: true`, `loginProbe: true` 확인
+  - 운영 `[학급]` 번호 목록이 개인 일정 2건과 검토대기 공지 2건으로 분리되는지 재검증 후 점검 데이터 정리
   - 운영 학급 알림장이 개인코드 조회와 학생 응답에 동일한 Apps Script 배포 URL을 사용하는지 확인
 - 가장 명확한 다음 단계
   - 서로 다른 실제 학생 코드 두 개로 개별 공지 격리와 확인·완료 응답을 모바일에서 확인한다.
