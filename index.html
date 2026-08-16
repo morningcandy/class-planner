@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#3157d5">
   <title>효니효의 개인 알림장</title>
-  <link rel="stylesheet" href="styles.css?v=20260816-order2">
+  <link rel="stylesheet" href="styles.css?v=20260816-order3">
 </head>
 <body>
   <div class="auth-screen" id="authScreen">
@@ -139,11 +139,14 @@
       <div class="main-column">
         <section class="panel" id="reviewPanel">
           <div class="section-heading">
-            <div><p class="eyebrow">승인 후 학생에게 공개</p><h2>학급 알림장 검토함 <span class="count-pill" id="reviewBadge">0</span></h2><span class="muted" style="font-size:11px">위로·아래로 여러 번 눌러 순서를 정하면 마지막 순서가 학생 화면에도 그대로 반영됩니다.</span><span class="notice-order-status" id="noticeOrderStatus" aria-live="polite">순서를 변경할 수 있습니다.</span></div>
-            <div class="segmented" id="noticeFilter">
-              <button type="button" class="active" data-status="검토대기">검토 대기</button>
-              <button type="button" data-status="게시됨">게시됨</button>
-              <button type="button" data-status="보류">보류</button>
+            <div><p class="eyebrow">승인 후 학생에게 공개</p><h2>학급 알림장 검토함 <span class="count-pill" id="reviewBadge">0</span></h2><span class="muted" style="font-size:11px">위로·아래로 순서를 정한 뒤 ‘순서 저장’을 누르면 Google Sheets와 학급 알림장에 반영됩니다.</span><span class="notice-order-status" id="noticeOrderStatus" aria-live="polite">순서를 변경할 수 있습니다.</span></div>
+            <div class="review-controls">
+              <div class="segmented" id="noticeFilter">
+                <button type="button" class="active" data-status="검토대기">검토 대기</button>
+                <button type="button" data-status="게시됨">게시됨</button>
+                <button type="button" data-status="보류">보류</button>
+              </div>
+              <button class="button primary save-order-button" id="saveNoticeOrderBtn" type="button" disabled>순서 저장</button>
             </div>
           </div>
           <div class="stack" id="noticeList"></div>
@@ -233,6 +236,6 @@
   <div class="toast hidden" id="toast" role="status"></div>
   <script src="../class-notice/data.js"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=20260816-order2"></script>
+  <script src="app.js?v=20260816-order3"></script>
 </body>
 </html>

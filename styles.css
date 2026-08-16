@@ -201,6 +201,8 @@ textarea { resize: vertical; line-height: 1.65; }
 .notice-order-status.pending, .notice-order-status.saving { color: var(--warning); }
 .notice-order-status.saved { color: var(--success); }
 .notice-order-status.error { color: var(--danger); }
+.review-controls { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.save-order-button { min-width: 88px; }
 .row-actions .publish { border-color: var(--primary); background: var(--primary); color: #fff; }
 .row-actions .hold { color: var(--warning); }
 .row-actions .danger { border-color: #f2c7cd; color: var(--danger); }
@@ -269,6 +271,7 @@ textarea { resize: vertical; line-height: 1.65; }
   .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .summary-card { min-height: 92px; }
   .section-heading { flex-direction: column; }
+  .review-controls { width: 100%; justify-content: space-between; }
   .section-heading.compact { flex-direction: row; }
   .claude-heading-actions { justify-content: flex-start; }
   .field-pair { grid-template-columns: 1fr; }

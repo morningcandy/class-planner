@@ -19,8 +19,7 @@
     selectedDate: '',
     loading: false,
     noticeOrderSaving: false,
-    noticeOrderPending: null,
-    noticeOrderTimer: null,
+    noticeOrderDirty: false,
     claudeMessages: [],
     claudeDraft: '',
     claudeFiles: [],
@@ -215,13 +214,24 @@
   }
 
   async function loadAdminData() {
+    const draftOrder = state.noticeOrderDirty
+      ? { status: state.noticeStatus, ids: visibleNotices().map((notice) => notice.notice_id) }
+      : null;
     const data = await api('adminLoad');
     state.plannerItems = Array.isArray(data.plannerItems) ? data.plannerItems : [];
     state.notices = Array.isArray(data.notices) ? data.notices : [];
     state.students = Array.isArray(data.students) ? data.students : [];
+    if (draftOrder) {
+      const byId = new Map(state.notices.map((notice) => [String(notice.notice_id), notice]));
+      draftOrder.ids.forEach((id, index) => {
+        const notice = byId.get(String(id));
+        if (notice && notice.status === draftOrder.status) notice.sort_order = (index + 1) * 10;
+      });
+    }
     $('updatedAt').textContent = `마지막 동기화 ${new Date(data.updatedAt || Date.now()).toLocaleString('ko-KR')}`;
     clearConnectionError();
     renderAll();
+    setNoticeOrderStatus(draftOrder ? '변경된 순서가 아직 저장되지 않았습니다.' : '순서를 변경할 수 있습니다.', draftOrder ? 'pending' : '');
     detectLegacySchedule();
   }
 
@@ -339,8 +349,8 @@
           <span class="spacer"></span>
           <div class="row-actions">
             <span class="order-number" aria-label="현재 순서">${index + 1}번째</span>
-            <button class="order-button" data-notice-action="move-up" data-id="${escapeHtml(notice.notice_id)}" ${index === 0 ? 'disabled' : ''} aria-label="${escapeHtml(notice.title)} 위로 이동">↑ 위로</button>
-            <button class="order-button" data-notice-action="move-down" data-id="${escapeHtml(notice.notice_id)}" ${index === total - 1 ? 'disabled' : ''} aria-label="${escapeHtml(notice.title)} 아래로 이동">↓ 아래로</button>
+            <button class="order-button" data-notice-action="move-up" data-id="${escapeHtml(notice.notice_id)}" ${index === 0 || state.noticeOrderSaving ? 'disabled' : ''} aria-label="${escapeHtml(notice.title)} 위로 이동">↑ 위로</button>
+            <button class="order-button" data-notice-action="move-down" data-id="${escapeHtml(notice.notice_id)}" ${index === total - 1 || state.noticeOrderSaving ? 'disabled' : ''} aria-label="${escapeHtml(notice.title)} 아래로 이동">↓ 아래로</button>
             <button data-notice-action="edit" data-id="${escapeHtml(notice.notice_id)}">수정</button>
             ${statusActions}
           </div>
@@ -353,6 +363,7 @@
     $('noticeList').innerHTML = list.length
       ? list.map((notice, index) => noticeCard(notice, index, list.length)).join('')
       : `<div class="empty-state">${escapeHtml(state.noticeStatus)} 상태의 공지가 없습니다.</div>`;
+    syncNoticeOrderControls();
   }
 
   function setNoticeOrderStatus(message, tone = '') {
@@ -361,49 +372,58 @@
     status.className = `notice-order-status ${tone}`.trim();
   }
 
-  function queueNoticeOrderSave(noticeIds) {
-    state.noticeOrderPending = noticeIds.slice();
-    if (state.noticeOrderTimer) clearTimeout(state.noticeOrderTimer);
-    setNoticeOrderStatus('변경한 순서를 저장할 예정입니다…', 'pending');
-    state.noticeOrderTimer = setTimeout(flushNoticeOrder, 650);
+  function syncNoticeOrderControls() {
+    const button = $('saveNoticeOrderBtn');
+    button.disabled = !state.noticeOrderDirty || state.noticeOrderSaving;
+    button.textContent = state.noticeOrderSaving ? '저장 중…' : '순서 저장';
   }
 
-  async function flushNoticeOrder() {
-    state.noticeOrderTimer = null;
-    if (state.noticeOrderSaving || !state.noticeOrderPending) return;
-    const noticeIds = state.noticeOrderPending;
-    state.noticeOrderPending = null;
+  function requireSavedNoticeOrder() {
+    if (!state.noticeOrderDirty) return true;
+    setNoticeOrderStatus('먼저 ‘순서 저장’을 눌러주세요.', 'error');
+    showToast('변경한 공지 순서를 먼저 저장해주세요.');
+    $('saveNoticeOrderBtn').focus();
+    return false;
+  }
+
+  async function saveNoticeOrder() {
+    if (!state.noticeOrderDirty || state.noticeOrderSaving) return;
+    const noticeIds = visibleNotices().map((notice) => notice.notice_id);
+    if (noticeIds.length < 2) {
+      state.noticeOrderDirty = false;
+      syncNoticeOrderControls();
+      return setNoticeOrderStatus('저장할 순서 변경이 없습니다.');
+    }
     state.noticeOrderSaving = true;
+    renderNotices();
     setNoticeOrderStatus('Google Sheets에 순서를 저장하는 중입니다…', 'saving');
     try {
       await api('reorderNotices', { noticeIds });
-      if (!state.noticeOrderPending) {
-        setNoticeOrderStatus('순서가 저장되었습니다.', 'saved');
-        showToast('공지 순서를 저장했습니다. 게시 후 학생 화면에도 같은 순서로 표시됩니다.');
-      }
+      state.noticeOrderDirty = false;
+      const published = state.noticeStatus === '게시됨';
+      setNoticeOrderStatus(published ? '저장되었습니다. 학급 알림장에 같은 순서가 반영됩니다.' : '순서가 저장되었습니다.', 'saved');
+      showToast(published ? '순서를 저장해 학급 알림장에 반영했습니다.' : '공지 순서를 Google Sheets에 저장했습니다.');
     } catch (error) {
-      state.noticeOrderPending = null;
       setNoticeOrderStatus('순서 저장에 실패했습니다. 다시 시도해주세요.', 'error');
       showToast(error.message);
       await loadAdminData().catch(() => {});
     } finally {
       state.noticeOrderSaving = false;
-      if (state.noticeOrderPending) {
-        setNoticeOrderStatus('추가 변경사항을 이어서 저장합니다…', 'pending');
-        state.noticeOrderTimer = setTimeout(flushNoticeOrder, 0);
-      }
+      renderNotices();
     }
   }
 
   function moveNotice(noticeId, direction) {
+    if (state.noticeOrderSaving) return;
     const list = visibleNotices();
     const from = list.findIndex((notice) => String(notice.notice_id) === String(noticeId));
     const to = from + direction;
     if (from < 0 || to < 0 || to >= list.length) return;
     [list[from], list[to]] = [list[to], list[from]];
     list.forEach((notice, index) => { notice.sort_order = (index + 1) * 10; });
+    state.noticeOrderDirty = true;
     renderNotices();
-    queueNoticeOrderSave(list.map((notice) => notice.notice_id));
+    setNoticeOrderStatus('변경된 순서가 아직 저장되지 않았습니다.', 'pending');
   }
 
   function plannerCard(item) {
@@ -613,8 +633,14 @@
     event.preventDefault();
     unlock($('tokenInput').value.trim());
   });
-  $('logoutBtn').addEventListener('click', lock);
-  $('refreshBtn').addEventListener('click', () => loadAdminData().catch(showConnectionError));
+  $('logoutBtn').addEventListener('click', () => {
+    if (state.noticeOrderDirty && !window.confirm('변경한 공지 순서를 저장하지 않고 로그아웃할까요?')) return;
+    lock();
+  });
+  $('refreshBtn').addEventListener('click', () => {
+    if (!requireSavedNoticeOrder()) return;
+    loadAdminData().catch(showConnectionError);
+  });
   $('classSiteLink').href = CONFIG.classSiteUrl || '#';
   $('legacyImportBtn').addEventListener('click', async () => {
     const items = legacySchedule();
@@ -770,6 +796,7 @@
   $('noticeFilter').addEventListener('click', (event) => {
     const button = event.target.closest('[data-status]');
     if (!button) return;
+    if (!requireSavedNoticeOrder()) return;
     state.noticeStatus = button.dataset.status;
     [...$('noticeFilter').children].forEach((child) => child.classList.toggle('active', child === button));
     renderNotices();
@@ -788,6 +815,7 @@
     if (!button) return;
     const { noticeAction, id } = button.dataset;
     try {
+      if (!['move-up', 'move-down'].includes(noticeAction) && !requireSavedNoticeOrder()) return;
       if (noticeAction === 'edit') return openNoticeEditor(id);
       if (noticeAction === 'move-up') return moveNotice(id, -1);
       if (noticeAction === 'move-down') return moveNotice(id, 1);
@@ -796,6 +824,13 @@
       if (noticeAction === 'close') await changeNoticeStatus(id, '종료됨');
       if (noticeAction === 'review') await changeNoticeStatus(id, '검토대기');
     } catch (error) { showToast(error.message); }
+  });
+
+  $('saveNoticeOrderBtn').addEventListener('click', saveNoticeOrder);
+  window.addEventListener('beforeunload', (event) => {
+    if (!state.noticeOrderDirty) return;
+    event.preventDefault();
+    event.returnValue = '';
   });
 
   $('plannerList').addEventListener('click', async (event) => {
