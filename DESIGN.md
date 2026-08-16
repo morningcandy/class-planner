@@ -40,7 +40,7 @@
 | 개인 알림장 | `https://morningcandy.github.io/class-planner/` | 교사 입력·일정·공지 검토 | 배포됨, HTTP 200 확인 |
 | 학급 알림장 | `https://morningcandy.github.io/class-notice/` | 학생 공지·할 일 표시 | 배포됨, HTTP 200 확인 |
 | 학급 관리자 | `https://morningcandy.github.io/class-notice/admin/` | 공지 수정·게시·보류·종료 | 배포됨, HTTP 200 확인 |
-| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 4·stdin 수정 검증 완료 |
+| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | promptVersion 5 코드 준비·Render 재배포 필요 |
 | Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 8, 삭제 검증 완료 |
 | Google Sheets | 교사 개인 스프레드시트 | 모든 업무·공지·응답의 원본 | 앱 전용 탭 6개 초기화 완료 |
 
@@ -187,6 +187,20 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - [ ] **P2** Google Sheets 백업 주기와 Render·Apps Script 장애 대응 절차를 정한다.
 
 ## 최근 작업
+
+### 2026-08-16 — Claude 종료 코드 1 진단 및 첨부파일 처리 턴 보강
+
+- 확인한 원인 후보
+  - Claude CLI 실패가 stdout JSON으로 반환되면 서버가 stderr만 읽어 실제 이유 대신 상태 1만 표시함
+  - 첨부파일은 Read 도구 호출 뒤 답변 턴이 더 필요하지만 최대 턴이 1로 제한돼 있었음
+- 개발 내용
+  - 일반 요청 최대 3턴, 첨부파일 요청 최대 6턴으로 조정
+  - stdout JSON과 stderr에서 실제 CLI 실패 사유를 추출하고 토큰·Bearer 값을 제거해 사용자에게 표시
+  - 운영 빌드 식별자를 promptVersion 5로 갱신
+- 검증
+  - JSON 오류 추출과 토큰 마스킹 테스트 추가
+- 가장 명확한 다음 단계
+  - Render에 promptVersion 5를 배포하고 같은 요청을 다시 보내 실제 처리 또는 구체적 인증 오류를 확인한다.
 
 ### 2026-08-16 — Claude stdin 경고 및 개인 일정 삭제 신뢰성 수정
 

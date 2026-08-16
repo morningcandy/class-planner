@@ -8,7 +8,7 @@ const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { PassThrough, Writable } = require('node:stream');
 const ExcelJS = require('exceljs');
-const { createServer, normalizeMessages, parseClaudeOutput, prepareAttachments, runClaude, SYSTEM_PROMPT } = require('../server');
+const { createServer, normalizeMessages, parseClaudeOutput, prepareAttachments, extractClaudeFailure, runClaude, SYSTEM_PROMPT } = require('../server');
 
 async function withServer(run) {
   const server = createServer({
@@ -31,8 +31,8 @@ test('health only reports whether secrets are configured', async () => {
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.oauthConfigured, true);
-    assert.equal(body.promptVersion, 4);
-    assert.equal(body.buildRevision, 'stdin-delete-reliability-v4');
+    assert.equal(body.promptVersion, 5);
+    assert.equal(body.buildRevision, 'attachment-turns-errors-v5');
     assert.equal(JSON.stringify(body).includes('test-oauth-value'), false);
   });
 });
@@ -142,5 +142,39 @@ test('writes the Claude prompt to stdin instead of waiting for piped input', asy
   });
   assert.equal(received, '표준입력 전달 점검');
   assert.equal(capturedArgs.includes('표준입력 전달 점검'), false);
+  assert.equal(capturedArgs[capturedArgs.indexOf('--max-turns') + 1], '3');
   assert.equal(result.reply, '완료');
+});
+
+test('allows additional Claude turns when reading an attachment', async () => {
+  let received = '';
+  let capturedArgs = [];
+  await runClaude('첨부파일 정리', [{ name: '안내.txt', data: Buffer.from('개학 안내').toString('base64') }], {
+    spawnProcess: (_executable, args) => {
+      capturedArgs = args;
+      const child = new EventEmitter();
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      child.stdin = new Writable({ write(chunk, _encoding, done) { received += chunk.toString('utf8'); done(); } });
+      child.kill = () => {};
+      child.stdin.on('finish', () => {
+        child.stdout.end(JSON.stringify({ structured_output: { reply: '완료', canApply: false, items: [] } }));
+        setImmediate(() => child.emit('close', 0));
+      });
+      return child;
+    },
+  });
+  assert.equal(capturedArgs[capturedArgs.indexOf('--max-turns') + 1], '6');
+  assert.match(received, /첨부파일이 있습니다/);
+  assert.match(received, /\.\/attachment-1-/);
+});
+
+test('extracts a safe Claude CLI failure from JSON stdout', () => {
+  const detail = extractClaudeFailure(
+    JSON.stringify({ type: 'result', subtype: 'error_during_execution', result: 'Login expired for sk-ant-secret-value' }),
+    '',
+    1
+  );
+  assert.match(detail, /Login expired/);
+  assert.equal(detail.includes('sk-ant-secret-value'), false);
 });

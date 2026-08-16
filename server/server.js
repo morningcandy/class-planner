@@ -18,8 +18,8 @@ const MAX_HISTORY_CHARS = 24000;
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 const RATE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT = 10;
-const PROMPT_VERSION = 4;
-const BUILD_REVISION = 'stdin-delete-reliability-v4';
+const PROMPT_VERSION = 5;
+const BUILD_REVISION = 'attachment-turns-errors-v5';
 
 const RESPONSE_SCHEMA = JSON.stringify({
   type: 'object',
@@ -178,6 +178,35 @@ function parseClaudeOutput(stdout) {
   };
 }
 
+function sanitizeCliError(value) {
+  return String(value || '')
+    .replace(/sk-ant-[A-Za-z0-9_-]+/g, '[CLAUDE TOKEN]')
+    .replace(/(CLAUDE_CODE_OAUTH_TOKEN\s*[=:]\s*)\S+/gi, '$1[REDACTED]')
+    .replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 900);
+}
+
+function extractClaudeFailure(stdoutText, stderrText, code) {
+  const candidates = [];
+  const stderr = String(stderrText || '').trim();
+  if (stderr) candidates.push(stderr.split('\n').slice(-4).join(' '));
+  const stdout = String(stdoutText || '').trim();
+  if (stdout) {
+    try {
+      const parsed = JSON.parse(stdout);
+      [parsed?.error?.message, parsed?.error, parsed?.message, parsed?.result, parsed?.subtype]
+        .filter((value) => typeof value === 'string' && value.trim())
+        .forEach((value) => candidates.push(value));
+    } catch {
+      candidates.push(stdout.split('\n').slice(-3).join(' '));
+    }
+  }
+  const detail = sanitizeCliError(candidates.find((value) => sanitizeCliError(value)) || '');
+  return detail || `Claude Code가 상태 ${code}로 종료되었습니다.`;
+}
+
 async function prepareAttachments(tempDir, files) {
   if (!Array.isArray(files) || !files.length) return '';
   if (files.length > MAX_FILES) throw new Error(`첨부파일은 최대 ${MAX_FILES}개까지 가능합니다.`);
@@ -226,13 +255,15 @@ async function runClaude(prompt, files = [], options = {}) {
     );
     const model = String(process.env.CLAUDE_MODEL || 'sonnet');
     const timeoutMs = Math.min(Math.max(Number(process.env.CLAUDE_TIMEOUT_MS) || 120000, 15000), 300000);
+    const defaultMaxTurns = attachmentPrompt ? 6 : 3;
+    const maxTurns = Math.min(Math.max(Number(process.env.CLAUDE_MAX_TURNS) || defaultMaxTurns, 2), 8);
     const childEnv = { ...process.env, CI: 'true', CLAUDE_CODE_SKIP_PROMPT_HISTORY: '1' };
     delete childEnv.ANTHROPIC_API_KEY;
     delete childEnv.ANTHROPIC_AUTH_TOKEN;
 
     const args = [
       '-p', '--output-format', 'json', '--json-schema', RESPONSE_SCHEMA,
-      '--model', model, '--max-turns', '1', '--no-session-persistence',
+      '--model', model, '--max-turns', String(maxTurns), '--no-session-persistence',
       '--safe-mode', '--permission-mode', 'dontAsk', '--tools', attachmentPrompt ? 'Read' : '',
       ...(attachmentPrompt ? ['--allowedTools', 'Read(./**)'] : []),
       '--disallowedTools', 'mcp__*',
@@ -274,8 +305,12 @@ async function runClaude(prompt, files = [], options = {}) {
     child.on('close', (code) => {
       if (settled) return;
       if (code !== 0) {
-        const detail = Buffer.concat(stderr).toString('utf8').trim().split('\n').slice(-3).join(' ');
-        return finish(new Error(detail || `Claude Code가 상태 ${code}로 종료되었습니다.`));
+        const detail = extractClaudeFailure(
+          Buffer.concat(stdout).toString('utf8'),
+          Buffer.concat(stderr).toString('utf8'),
+          code
+        );
+        return finish(new Error(detail));
       }
       try { finish(null, parseClaudeOutput(Buffer.concat(stdout).toString('utf8'))); }
       catch (error) { finish(error); }
@@ -357,4 +392,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createServer, buildPrompt, normalizeMessages, parseClaudeOutput, safeEqual, prepareAttachments, runClaude, SYSTEM_PROMPT };
+module.exports = { createServer, buildPrompt, normalizeMessages, parseClaudeOutput, safeEqual, prepareAttachments, extractClaudeFailure, runClaude, SYSTEM_PROMPT };
