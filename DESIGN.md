@@ -40,7 +40,7 @@
 | 개인 알림장 | `https://morningcandy.github.io/class-planner/` | 교사 입력·일정·공지 검토 | 배포됨, HTTP 200 확인 |
 | 학급 알림장 | `https://morningcandy.github.io/class-notice/` | 학생 공지·할 일 표시 | 배포됨, HTTP 200 확인 |
 | 학급 관리자 | `https://morningcandy.github.io/class-notice/admin/` | 공지 수정·게시·보류·종료 | 배포됨, HTTP 200 확인 |
-| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 6 운영 중, version 7 배포 대기 |
+| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 7 운영 배포 확인 |
 | Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 13, 개인코드 6자리 규칙 검증 완료 |
 | Google Sheets | 교사 개인 스프레드시트 | 모든 업무·공지·응답의 원본 | 앱 전용 탭 6개 초기화 완료 |
 
@@ -211,10 +211,12 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
   - 첫 로그인 자체검사 대상이 1번 학생임을 확인
   - 실제 Chrome에서 예시 `011234`, 5자리 거부, 1번+1234 변환을 확인
   - 개인 알림장 테스트 7개, 브리지 테스트 14개, 학급 알림장 테스트 9개 통과
+  - 운영 Render `/health`에서 `promptVersion: 7`, `buildRevision: long-attachments-student-codes-v7`, OAuth·접속키 설정을 확인
+  - 운영 개인 알림장의 330초 요청 자산과 학급 알림장의 `011234` 코드 자산 로드를 확인
 - 남은 개발 항목
-  - Render promptVersion 7을 운영 배포한 뒤 실제 첨부 요청의 장시간 처리를 확인
+  - 실제 흐린 이미지나 다쪽 PDF에서 280초 안에 추출 품질이 충분한지 사례별 확인
 - 가장 최근에 진행한 내용
-  - 1~9번 코드의 앞 0 손실을 수정하고 운영 학생 코드 28개를 모두 새 규칙으로 교정함
+  - Render promptVersion 7과 두 GitHub Pages 최신 자산을 운영 환경에서 최종 확인함
 
 ### 2026-08-16 — 두 달력의 학사일정 전용 정책 적용
 
