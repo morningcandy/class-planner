@@ -40,7 +40,7 @@
 | 개인 알림장 | `https://morningcandy.github.io/class-planner/` | 교사 입력·일정·공지 검토 | 배포됨, HTTP 200 확인 |
 | 학급 알림장 | `https://morningcandy.github.io/class-notice/` | 학생 공지·할 일 표시 | 배포됨, HTTP 200 확인 |
 | 학급 관리자 | `https://morningcandy.github.io/class-notice/admin/` | 공지 수정·게시·보류·종료 | 배포됨, HTTP 200 확인 |
-| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | promptVersion 4 코드 준비·Render 재배포 필요 |
+| Claude 브리지 | `https://morningcandy-class-planner-bridge-260815.onrender.com` | Claude Code 실행, 구조화 항목 및 첨부파일 분석 | Render `live`, promptVersion 4·stdin 수정 검증 완료 |
 | Apps Script | `config.js`의 `apiUrl` | 인증, Sheets 읽기·쓰기, 공개 범위 필터 | v3 스키마·운영 배포 버전 8, 삭제 검증 완료 |
 | Google Sheets | 교사 개인 스프레드시트 | 모든 업무·공지·응답의 원본 | 앱 전용 탭 6개 초기화 완료 |
 
@@ -202,10 +202,13 @@ GitHub Pages는 서버 프로세스와 비밀 환경변수를 실행할 수 없�
 - 검증
   - stdin 전달 회귀 테스트를 포함한 서버 테스트 10개 통과
   - Apps Script 버전 8 운영 배포
+  - Render 운영 health `promptVersion: 4`, `buildRevision: stdin-delete-reliability-v4`
+  - OAuth 토큰과 브리지 접근 키 설정 상태 정상
+  - GitHub Pages 운영 화면에서 90초 대기와 삭제 직후 화면 반영 코드 확인
   - 점검 일정 생성 9.4초, 삭제 8초, `deleted: true` 확인
   - 삭제 후 재조회에서 항목 없음, 같은 ID 재삭제는 `deleted: false` 확인
 - 가장 명확한 다음 단계
-  - Render에 promptVersion 4를 배포한 후 개인 알림장에서 실제 Claude 요청을 다시 보낸다.
+  - 개인 알림장 화면을 새로고침한 후 실제 Claude 요청을 다시 보내 경고가 사라졌는지 확인한다.
 
 ### 2026-08-16 — Render 구조화 분리·파일 첨부 운영 배포 완료
 
