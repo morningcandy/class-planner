@@ -150,6 +150,14 @@ textarea { resize: vertical; line-height: 1.65; }
 .draft-heading > span { padding: 5px 8px; border-radius: 99px; background: #fff6e8; color: #8a5316; font-size: 10px; font-weight: 800; }
 .claude-draft textarea { background: #fff; }
 .draft-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.claude-body > summary { width: fit-content; margin-bottom: 2px; color: var(--muted); font-size: 12px; font-weight: 800; cursor: pointer; }
+.claude-body > summary::-webkit-details-marker { display: none; }
+.claude-body > summary { list-style: none; }
+.claude-body[open] > summary { margin-bottom: 14px; }
+.claude-body > summary .claude-body-close,
+.claude-body[open] > summary .claude-body-open { display: none; }
+.claude-body[open] > summary .claude-body-close { display: inline; }
+
 .direct-entry { margin-top: 17px; padding-top: 13px; border-top: 1px solid var(--line); }
 .direct-entry summary { width: fit-content; color: var(--muted); font-size: 11px; font-weight: 800; cursor: pointer; }
 .direct-entry form { margin-top: 12px; }

@@ -26,6 +26,7 @@
   };
 
   const $ = (id) => document.getElementById(id);
+  const openClaudeBody = () => { const body = $('claudeBody'); if (body) body.open = true; };
   const escapeHtml = (value) => String(value ?? '')
     .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
@@ -669,6 +670,7 @@
   });
 
   $('claudeSettingsBtn').addEventListener('click', () => {
+    openClaudeBody();
     $('claudeSettings').classList.toggle('hidden');
     if (!$('claudeSettings').classList.contains('hidden')) $('claudeBridgeUrl').focus();
   });
@@ -694,7 +696,7 @@
     }
   });
 
-  $('newClaudeChatBtn').addEventListener('click', resetClaudeChat);
+  $('newClaudeChatBtn').addEventListener('click', () => { openClaudeBody(); resetClaudeChat(); });
 
   $('claudeFiles').addEventListener('change', () => {
     const result = window.ClassPlannerAttachments.mergeFiles(state.claudeFiles, $('claudeFiles').files);
