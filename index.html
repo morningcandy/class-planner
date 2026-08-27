@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#3157d5">
   <title>효니효의 개인 알림장</title>
-  <link rel="stylesheet" href="styles.css?v=20260827-meal2">
+  <link rel="stylesheet" href="styles.css?v=20260827-fix1">
 </head>
 <body>
   <div class="auth-screen" id="authScreen">
@@ -70,7 +70,6 @@
         </div>
       </div>
 
-      <div class="now-note" id="nowNote"></div>
     </section>
 
     <section class="summary-grid" aria-label="오늘 요약">
@@ -82,21 +81,6 @@
 
     <div class="content-grid">
       <div class="main-column">
-        <section class="panel" id="reviewPanel">
-          <div class="section-heading">
-            <div><p class="eyebrow">승인 후 학생에게 공개</p><h2>학급 알림장 검토함 <span class="count-pill" id="reviewBadge">0</span></h2><span class="muted" style="font-size:11px">위로·아래로 순서를 정한 뒤 ‘순서 저장’을 누르면 Google Sheets와 학급 알림장에 반영됩니다.</span><span class="notice-order-status" id="noticeOrderStatus" aria-live="polite">순서를 변경할 수 있습니다.</span></div>
-            <div class="review-controls">
-              <div class="segmented" id="noticeFilter">
-                <button type="button" class="active" data-status="검토대기">검토 대기</button>
-                <button type="button" data-status="게시됨">게시됨</button>
-                <button type="button" data-status="보류">보류</button>
-              </div>
-              <button class="button primary save-order-button" id="saveNoticeOrderBtn" type="button" disabled>순서 저장</button>
-            </div>
-          </div>
-          <div class="stack" id="noticeList"></div>
-        </section>
-
         <section class="panel">
           <div class="section-heading">
             <div><p class="eyebrow">구글 시트에 자동 저장</p><h2>개인 알림장</h2><span class="muted" style="font-size:11px">관리자 로그인 후 각 항목을 수정하거나 삭제할 수 있습니다.</span></div>
@@ -246,6 +230,20 @@
       </details>
     </section>
 
+    <section class="panel" id="reviewPanel">
+      <div class="section-heading">
+        <div><p class="eyebrow">승인 후 학생에게 공개</p><h2>학급 알림장 검토함 <span class="count-pill" id="reviewBadge">0</span></h2><span class="muted" style="font-size:11px">위로·아래로 순서를 정한 뒤 ‘순서 저장’을 누르면 Google Sheets와 학급 알림장에 반영됩니다.</span><span class="notice-order-status" id="noticeOrderStatus" aria-live="polite">순서를 변경할 수 있습니다.</span></div>
+        <div class="review-controls">
+          <div class="segmented" id="noticeFilter">
+            <button type="button" class="active" data-status="검토대기">검토 대기</button>
+            <button type="button" data-status="게시됨">게시됨</button>
+            <button type="button" data-status="보류">보류</button>
+          </div>
+          <button class="button primary save-order-button" id="saveNoticeOrderBtn" type="button" disabled>순서 저장</button>
+        </div>
+      </div>
+      <div class="stack" id="noticeList"></div>
+    </section>
   </main>
 
   <div class="modal-backdrop hidden" id="itemModal">
@@ -288,6 +286,6 @@
   <script src="../class-notice/data.js"></script>
   <script src="config.js"></script>
   <script src="attachment-utils.js?v=20260816-files1"></script>
-  <script src="app.js?v=20260827-meal2"></script>
+  <script src="app.js?v=20260827-fix1"></script>
 </body>
 </html>

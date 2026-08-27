@@ -14,6 +14,7 @@
     notices: [],
     students: [],
     category: '전체',
+    pastDoneOpen: false,
     noticeStatus: '검토대기',
     calendarDate: new Date(),
     selectedDate: '',
@@ -428,15 +429,14 @@
     setNoticeOrderStatus('변경된 순서가 아직 저장되지 않았습니다.', 'pending');
   }
 
-  function plannerCard(item) {
+  /* 완료 항목은 접어서 한 줄로만 보여준다. 메모·태그는 수정 화면에서 확인. */
+  function plannerCard(item, compact = false) {
     const date = item.due_date || item.date;
     const isDone = item.status === '완료';
     const linked = String(item.linked_notice_ids || '').trim();
-    return `
-      <article class="planner-row ${isDone ? 'done' : ''}">
-        <input class="complete-check" type="checkbox" data-item-action="toggle" data-id="${escapeHtml(item.item_id)}" ${isDone ? 'checked' : ''} aria-label="완료">
-        <div>
-          <h3 class="row-title">${escapeHtml(item.title)}</h3>
+    const body = compact
+      ? `<h3 class="row-title">${escapeHtml(item.title)}</h3>`
+      : `<h3 class="row-title">${escapeHtml(item.title)}</h3>
           ${item.note ? `<p class="row-note">${escapeHtml(item.note)}</p>` : ''}
           <div class="row-meta">
             <span class="tag ${categoryClass(item.category)}">${escapeHtml(item.category)}</span>
@@ -444,8 +444,11 @@
             ${item.priority === '높음' ? '<span class="tag urgent">중요</span>' : ''}
             ${linked ? '<span class="tag class">학급 공지 연결</span>' : ''}
             <span class="tag">${escapeHtml(item.status || '진행')}</span>
-          </div>
-        </div>
+          </div>`;
+    return `
+      <article class="planner-row ${isDone ? 'done' : ''} ${compact ? 'compact' : ''}">
+        <input class="complete-check" type="checkbox" data-item-action="toggle" data-id="${escapeHtml(item.item_id)}" ${isDone ? 'checked' : ''} aria-label="완료">
+        <div>${body}</div>
         <div class="row-actions">
           <span class="date-label">${escapeHtml(dateLabel(date))}</span>
           <button data-item-action="edit" data-id="${escapeHtml(item.item_id)}">수정</button>
@@ -454,15 +457,34 @@
       </article>`;
   }
 
+  /* 완료 표시를 누르면 Apps Script가 updated_at을 그때 시각으로 갱신한다.
+     그래서 완료한 날짜는 updated_at 앞 10자로 판단한다. */
+  function completedDate(item) {
+    return String(item.updated_at || '').slice(0, 10);
+  }
+
   function renderPlanner() {
     const items = state.plannerItems
-      .filter((item) => state.category === '전체' || item.category === state.category)
-      .sort((a, b) => {
-        if ((a.status === '완료') !== (b.status === '완료')) return a.status === '완료' ? 1 : -1;
-        return String(a.due_date || a.date || '9999').localeCompare(String(b.due_date || b.date || '9999'));
-      });
-    $('plannerList').innerHTML = items.length
-      ? items.map(plannerCard).join('')
+      .filter((item) => state.category === '전체' || item.category === state.category);
+    const byDueDate = (a, b) => String(a.due_date || a.date || '9999').localeCompare(String(b.due_date || b.date || '9999'));
+    const byRecent = (a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
+
+    const active = items.filter((item) => item.status !== '완료').sort(byDueDate);
+    const done = items.filter((item) => item.status === '완료');
+    const doneToday = done.filter((item) => completedDate(item) === today()).sort(byRecent);
+    const donePast = done.filter((item) => completedDate(item) !== today()).sort(byRecent);
+
+    const openRows = active.map((item) => plannerCard(item)).join('')
+      + doneToday.map((item) => plannerCard(item, true)).join('');
+    const pastRows = donePast.length
+      ? `<details class="past-done"${state.pastDoneOpen ? ' open' : ''} id="pastDone">
+          <summary>지난 확인사항 <span class="count-pill">${donePast.length}</span></summary>
+          <div class="stack">${donePast.map((item) => plannerCard(item, true)).join('')}</div>
+        </details>`
+      : '';
+
+    $('plannerList').innerHTML = (openRows || pastRows)
+      ? openRows + pastRows
       : '<div class="empty-state">이 분류에 등록된 일정이 없습니다.</div>';
   }
 
@@ -620,6 +642,19 @@
     return out;
   }
 
+  /* 공지 문장에서 교시를 떼면 "8월 19일 수 에 생기부 점검이 진행됩니다" 처럼
+     날짜와 조사가 남는다. 화면에 그대로 쓰기엔 길어서 앞부분을 정리한다. */
+  function tidyLabel(text) {
+    const label = String(text)
+      .replace(/[()[\]]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^\d{1,2}\s*[월/.]\s*\d{1,2}\s*일?\s*[월화수목금토일]?\s*/, '')
+      .replace(/^[에는은이가]\s+/, '')
+      .trim();
+    return label.length > 30 ? `${label.slice(0, 29)}…` : label;
+  }
+
   /* "동아리활동(6,7교시) / 수요일 시간표로 수업" 같은 문장에서
      ① 요일 대체 ② 교시별 대체 활동을 뽑아낸다. */
   function parseTimetableHints(text) {
@@ -630,28 +665,35 @@
     String(text).split(/\s*(?:\/|\n|;)\s*/).forEach((segment) => {
       const matched = segment.match(/\(?\s*((?:\d\s*[,~\-]\s*)*\d)\s*교시\s*\)?/);
       if (!matched) return;
-      const label = segment.replace(matched[0], ' ').replace(/[()[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+      const label = tidyLabel(segment.replace(matched[0], ' '));
       if (!label || /시간표/.test(label)) return;
       expandPeriods(matched[1]).forEach((period) => { hints.periods[period] = label; });
     });
     return hints;
   }
 
-  /* 오늘 날짜에 걸리는 학급 공지 중 시간표 변동이 담긴 것만 고른다. */
+  /* 공지의 notice_date는 '안내한 날'이라 적용 날짜가 아니다.
+     (예: 9/4 학업성취도 평가 공지를 8/27에 올리면 notice_date는 8/27)
+     그래서 본문·제목에 그 날짜가 직접 적힌 공지만 오늘 것으로 본다. */
+  function mentionsDate(text, dateStr) {
+    const month = Number(dateStr.slice(5, 7));
+    const day = Number(dateStr.slice(8, 10));
+    const numeric = new RegExp(`(^|[^0-9])0?${month}\s*[/.]\s*0?${day}(?![0-9])`);
+    const korean = new RegExp(`${month}\s*월\s*0?${day}\s*일`);
+    return numeric.test(text) || korean.test(text);
+  }
+
+  /* 오늘 날짜가 직접 적힌 학급 공지 중 시간표 변동이 담긴 것만 고른다. */
   function noticeHintSources(dateStr) {
-    const dayText = `${Number(dateStr.slice(5, 7))}월 ${Number(dateStr.slice(8, 10))}일`;
     return state.notices
       .filter((notice) => notice.status === '게시됨' || notice.status === '검토대기')
       .filter((notice) => {
         const text = `${notice.title || ''} ${notice.content || ''}`;
-        if (!CHANGE_HINT.test(text)) return false;
-        if (notice.notice_date === dateStr || notice.due_date === dateStr) return true;
-        return text.includes(dayText);
+        return CHANGE_HINT.test(text) && mentionsDate(text, dateStr);
       })
       .map((notice) => ({
         text: `${notice.title || ''} / ${notice.content || ''}`,
         source: notice.status === '게시됨' ? '학급 공지' : '검토 대기 공지',
-        title: notice.title || '',
       }));
   }
 
@@ -668,9 +710,10 @@
       weekday: baseWeekday,
       swap: null,
       overrides: {},
-      notes: [],
       noClass: false,
       noClassReason: '',
+      // 고사기간은 시정표 자체가 달라지므로 평소 시간표를 그대로 보여주면 안 된다.
+      offTimetable: special ? special.title : '',
     };
 
     if (baseWeekday === 0 || baseWeekday === 6) {
@@ -687,7 +730,7 @@
     }
 
     const sources = events
-      .map((event) => ({ text: event.title, source: '학사일정', title: event.title }))
+      .map((event) => ({ text: event.title, source: '학사일정' }))
       .concat(noticeHintSources(dateStr));
 
     sources.forEach((entry) => {
@@ -699,7 +742,6 @@
       Object.entries(hints.periods).forEach(([period, label]) => {
         context.overrides[period] = { label, source: entry.source };
       });
-      context.notes.push({ title: entry.title || entry.text, source: entry.source });
     });
 
     /* 수요일 6·7교시는 창체 시간이다. 학사일정·공지에 동아리활동 표기가
@@ -712,8 +754,6 @@
       });
     }
 
-    if (special) context.notes.push({ title: special.title, source: '학사일정' });
-    if (vacation) context.notes.push({ title: vacation.title, source: '학사일정' });
     return context;
   }
 
@@ -729,6 +769,7 @@
     const override = context.overrides[period];
     const myClass = myClassAt(context, period);
     if (context.noClass) return { text: '수업 없음', tone: 'off', myClass: '', override: null };
+    if (context.offTimetable) return { text: '시간표 별도', tone: 'off', myClass: '', override: null };
     if (override) {
       /* 추정값은 반드시 티가 나게 적는다. 교사가 학교 일정을 다시 확인해야 하기 때문. */
       const label = override.guess ? `${override.label}(추정)` : override.label;
@@ -745,6 +786,7 @@
 
   function slotPlan(context, slot) {
     if (context.noClass) return { text: '수업 없는 날', tone: 'off', override: null };
+    if (context.offTimetable && slot.kind !== 'lunch') return { text: '시간표 별도', tone: 'off', override: null };
     if (slot.kind === 'homeroom') return { text: '아침조회 (우리 반)', tone: 'event', override: null };
     if (slot.kind === 'lunch') return { text: '점심시간', tone: 'free', override: null };
     return periodPlan(context, slot.period);
@@ -860,6 +902,13 @@
       });
   }
 
+  function dayLabel(context) {
+    if (context.noClass) return `${context.noClassReason} · 수업 없음`;
+    if (context.offTimetable) return `${context.offTimetable} · 정규 시간표 아님`;
+    if (context.swap) return `${WEEKDAY_NAMES[context.swap.weekday]}요일 시간표로 수업 (${context.swap.source} 반영)`;
+    return `${WEEKDAY_NAMES[context.weekday]}요일 시간표`;
+  }
+
   function renderNow() {
     if (!$('nowPanel')) return;
     const nowDate = new Date();
@@ -871,11 +920,7 @@
     $('nowClock').textContent = [nowDate.getHours(), nowDate.getMinutes(), nowDate.getSeconds()]
       .map((value) => String(value).padStart(2, '0')).join(':');
     $('nowDateLabel').textContent = dateLabel(dateStr);
-    $('nowDaySource').textContent = context.noClass
-      ? `${context.noClassReason} · 수업 없음`
-      : context.swap
-        ? `${WEEKDAY_NAMES[context.swap.weekday]}요일 시간표로 수업 (${context.swap.source} 반영)`
-        : `${WEEKDAY_NAMES[context.weekday]}요일 시간표`;
+    $('nowDaySource').textContent = dayLabel(context);
 
     let periodText = '—';
     let remainText = '';
@@ -917,11 +962,6 @@
     $('nextSubject').textContent = context.noClass || !upcoming
       ? '예정된 다음 시간이 없습니다.'
       : `${upcoming.label} (${upcoming.start}) · ${slotPlan(context, upcoming).text}`;
-
-    const notes = context.notes.filter((note, index, all) => all.findIndex((entry) => entry.title === note.title) === index);
-    $('nowNote').innerHTML = notes.length
-      ? notes.map((note) => `<p><span class="now-tag ${note.source === '학사일정' ? '' : 'notice'}">${escapeHtml(note.source)}</span>${escapeHtml(note.title)}</p>`).join('')
-      : '<p class="muted">오늘 학사일정·시간표 변동 안내가 없습니다.</p>';
 
     ensureMeal(dateStr);
   }
@@ -1206,6 +1246,10 @@
       catch (error) { showToast(error.message); }
     }
   });
+  // 다시 그려도 '지난 확인사항'을 열어 둔 상태가 유지되도록 기억한다.
+  $('plannerList').addEventListener('toggle', (event) => {
+    if (event.target.id === 'pastDone') state.pastDoneOpen = event.target.open;
+  }, true);
   $('plannerList').addEventListener('change', async (event) => {
     const checkbox = event.target.closest('[data-item-action="toggle"]');
     if (!checkbox) return;

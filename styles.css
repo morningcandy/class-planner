@@ -217,6 +217,21 @@ textarea { resize: vertical; line-height: 1.65; }
 .planner-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
 .planner-row.done { opacity: .56; }
 .planner-row.done .row-title { text-decoration: line-through; }
+/* 완료 항목은 한 줄로 접어 스크롤을 줄인다. */
+.planner-row.compact { padding: 8px 12px; border-radius: 12px; background: #fafbfd; }
+.planner-row.compact .row-title { font-size: 13px; font-weight: 600; }
+.planner-row.compact .row-actions button { padding: 4px 7px; font-size: 10px; }
+.planner-row.compact .date-label { font-size: 10px; }
+.past-done { margin-top: 6px; border: 1px solid var(--line); border-radius: 14px; background: #fbfcfe; }
+.past-done > summary {
+  padding: 11px 14px; cursor: pointer; list-style: none;
+  font-size: 12px; font-weight: 800; color: #59647b;
+  display: flex; align-items: center; gap: 8px;
+}
+.past-done > summary::-webkit-details-marker { display: none; }
+.past-done > summary::before { content: '▸'; color: #98a2b8; font-size: 11px; }
+.past-done[open] > summary::before { content: '▾'; }
+.past-done > .stack { padding: 0 12px 12px; }
 .complete-check { width: 19px; height: 19px; accent-color: var(--success); }
 
 .calendar-nav { display: flex; gap: 4px; }
@@ -331,12 +346,13 @@ textarea { resize: vertical; line-height: 1.65; }
 }
 .now-meal-head {
   margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px;
-  font-size: 12px; font-weight: 800; color: #9a5a18;
+  font-size: 13px; font-weight: 800; color: #9a5a18;
 }
-.now-meal-body { font-size: 12px; color: #4a5670; line-height: 1.55; }
-.now-meal-body p { margin: 0; }
-.now-meal-body ul { margin: 0; padding: 0; list-style: none; }
-.now-meal-body li { padding-left: 10px; position: relative; }
+.now-meal-body { font-size: 15px; color: #3c4763; line-height: 1.6; }
+.now-meal-body p { margin: 0; font-size: 13px; }
+/* 메뉴가 길면 카드 안에서 2단으로 흐르게 둔다. */
+.now-meal-body ul { margin: 0; padding: 0; list-style: none; columns: 2; column-gap: 16px; }
+.now-meal-body li { padding-left: 11px; position: relative; break-inside: avoid; font-weight: 600; }
 .now-meal-body li::before { content: '·'; position: absolute; left: 2px; color: #c9a06a; }
 .now-meal-group + .now-meal-group { margin-top: 8px; }
 .now-meal-name {
@@ -354,16 +370,13 @@ textarea { resize: vertical; line-height: 1.65; }
   flex: none; min-width: 34px; padding: 3px 8px; border-radius: 99px;
   background: #eef1f8; color: #59647b; font-size: 10px; font-weight: 800; text-align: center;
 }
-.now-note { margin-top: 14px; display: grid; gap: 5px; }
-.now-note p { margin: 0; font-size: 12px; color: #4a5670; line-height: 1.5; }
-.now-tag {
-  display: inline-block; margin-right: 6px; padding: 2px 7px; border-radius: 99px;
-  background: #eef1f8; color: #59647b; font-size: 10px; font-weight: 800; vertical-align: 1px;
-}
-.now-tag.notice { background: var(--primary-soft); color: var(--primary); }
 @media (max-width: 860px) {
   .now-main { grid-template-columns: minmax(180px, 1fr) minmax(0, 1.2fr); }
   .now-meal { grid-column: 1 / -1; }
+}
+
+@media (max-width: 480px) {
+  .now-meal-body ul { columns: 1; }
 }
 
 @media (max-width: 720px) {
