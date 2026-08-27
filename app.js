@@ -23,6 +23,7 @@
     claudeMessages: [],
     claudeDraft: '',
     claudeFiles: [],
+    mealDate: '',
   };
 
   const $ = (id) => document.getElementById(id);
@@ -764,6 +765,105 @@
     return { phase: 'after', slot: null, index: BELL.length, next: null, remain: 0, progress: 1 };
   }
 
+  /* ── 오늘의 급식 (나이스 공개 API) ────────────────────────────────
+     학교 홈페이지 급식일정은 상세를 JS로 불러오는 구조라 외부에서 읽을 수
+     없다. 같은 원본인 나이스 open API는 인증키 없이 CORS가 열려 있어
+     정적 페이지에서 바로 부를 수 있다. */
+  const NEIS_MEAL_URL = 'https://open.neis.go.kr/hub/mealServiceDietInfo';
+  const NEIS_OFFICE = CONFIG.neisOfficeCode || 'B10';
+  const NEIS_SCHOOL = CONFIG.neisSchoolCode || '7010818';
+  const SCHOOL_MEAL_URL = CONFIG.schoolMealUrl || '';
+  const MEAL_CACHE_PREFIX = 'classPlanner.meal.';
+  const mealCache = new Map();
+
+  function readMealCache(key) {
+    try { return JSON.parse(sessionStorage.getItem(MEAL_CACHE_PREFIX + key) || 'null'); } catch (error) { return null; }
+  }
+
+  function writeMealCache(key, value) {
+    try { sessionStorage.setItem(MEAL_CACHE_PREFIX + key, JSON.stringify(value)); } catch (error) { /* 저장 못해도 화면은 그대로 */ }
+  }
+
+  /* "하이라이스.. (1.2.5.6)" → "하이라이스" — 알레르기 번호와 꼬리 점을 뗀다. */
+  function cleanDish(text) {
+    return String(text)
+      .replace(/\s*\(\s*[\d.\s]*\)\s*$/, '')
+      .replace(/\.+\s*$/, '')
+      .trim();
+  }
+
+  function parseMealRows(payload) {
+    const rows = payload?.mealServiceDietInfo?.[1]?.row;
+    if (!Array.isArray(rows)) return [];
+    return rows.map((row) => ({
+      name: row.MMEAL_SC_NM || '급식',
+      dishes: String(row.DDISH_NM || '').split(/<br\s*\/?>/i).map(cleanDish).filter(Boolean),
+      calorie: String(row.CAL_INFO || '').trim(),
+    })).filter((meal) => meal.dishes.length);
+  }
+
+  async function fetchMeal(dateStr) {
+    const ymd = dateStr.replaceAll('-', '');
+    const url = `${NEIS_MEAL_URL}?Type=json&pIndex=1&pSize=10`
+      + `&ATPT_OFCDC_SC_CODE=${encodeURIComponent(NEIS_OFFICE)}`
+      + `&SD_SCHUL_CODE=${encodeURIComponent(NEIS_SCHOOL)}`
+      + `&MLSV_YMD=${ymd}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`급식 정보를 불러오지 못했습니다 (${response.status})`);
+    // 급식이 없는 날은 오류가 아니라 INFO-200으로 온다.
+    return parseMealRows(await response.json());
+  }
+
+  function renderMealBody(meals) {
+    const kcal = meals.map((meal) => meal.calorie).find(Boolean) || '';
+    $('nowMealKcal').textContent = kcal ? kcal.replace(/\s*Kcal$/i, ' kcal') : '';
+    if (!meals.length) {
+      $('nowMealBody').innerHTML = '<p class="muted">오늘은 등록된 급식이 없습니다.</p>';
+      return;
+    }
+    $('nowMealBody').innerHTML = meals.map((meal) => `
+      <div class="now-meal-group">
+        ${meals.length > 1 ? `<span class="now-meal-name">${escapeHtml(meal.name)}</span>` : ''}
+        <ul>${meal.dishes.map((dish) => `<li>${escapeHtml(dish)}</li>`).join('')}</ul>
+      </div>`).join('');
+  }
+
+  function renderMealError(message) {
+    $('nowMealKcal').textContent = '';
+    const link = SCHOOL_MEAL_URL
+      ? ` <a href="${escapeHtml(SCHOOL_MEAL_URL)}" target="_blank" rel="noopener">학교 홈페이지에서 보기</a>`
+      : '';
+    $('nowMealBody').innerHTML = `<p class="muted">${escapeHtml(message)}<button type="button" class="now-meal-retry" id="nowMealRetry">다시 시도</button>${link}</p>`;
+    $('nowMealRetry').addEventListener('click', () => {
+      mealCache.delete(state.mealDate);
+      const target = state.mealDate;
+      state.mealDate = '';
+      ensureMeal(target);
+    });
+  }
+
+  /* 초마다 도는 renderNow()가 매번 요청하지 않도록 날짜별로 한 번만 부른다. */
+  function ensureMeal(dateStr) {
+    if (state.mealDate === dateStr) return;
+    state.mealDate = dateStr;
+    if (mealCache.has(dateStr)) { renderMealBody(mealCache.get(dateStr)); return; }
+    const cached = readMealCache(dateStr);
+    if (cached) { mealCache.set(dateStr, cached); renderMealBody(cached); return; }
+    $('nowMealBody').textContent = '급식 정보를 불러오는 중…';
+    fetchMeal(dateStr)
+      .then((meals) => {
+        if (state.mealDate !== dateStr) return;
+        mealCache.set(dateStr, meals);
+        // 아직 안 올라온 날은 저장하지 않는다. 새로고침하면 다시 확인하도록.
+        if (meals.length) writeMealCache(dateStr, meals);
+        renderMealBody(meals);
+      })
+      .catch(() => {
+        if (state.mealDate !== dateStr) return;
+        renderMealError('급식 정보를 불러오지 못했습니다.');
+      });
+  }
+
   function renderNow() {
     if (!$('nowPanel')) return;
     const nowDate = new Date();
@@ -826,6 +926,8 @@
     $('nowNote').innerHTML = notes.length
       ? notes.map((note) => `<p><span class="now-tag ${note.source === '학사일정' ? '' : 'notice'}">${escapeHtml(note.source)}</span>${escapeHtml(note.title)}</p>`).join('')
       : '<p class="muted">오늘 학사일정·시간표 변동 안내가 없습니다.</p>';
+
+    ensureMeal(dateStr);
   }
 
   // 시간표 계산 로직은 브라우저 콘솔·테스트에서 단독으로 확인할 수 있게 열어 둔다.

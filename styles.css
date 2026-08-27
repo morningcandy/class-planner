@@ -309,8 +309,8 @@ textarea { resize: vertical; line-height: 1.65; }
   color: var(--ink); line-height: 1;
 }
 .now-main {
-  display: grid; grid-template-columns: minmax(220px, 1fr) 1.4fr;
-  gap: 16px; align-items: center; margin-top: 14px;
+  display: grid; grid-template-columns: minmax(200px, .9fr) minmax(0, 1.1fr) minmax(190px, .85fr);
+  gap: 16px; align-items: stretch; margin-top: 14px;
 }
 .now-slot {
   border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
@@ -324,7 +324,31 @@ textarea { resize: vertical; line-height: 1.65; }
 .now-remain { display: block; margin-top: 3px; font-size: 13px; font-weight: 700; color: var(--primary); }
 .now-bar { display: block; margin-top: 10px; height: 5px; border-radius: 99px; background: #dfe5f3; overflow: hidden; }
 .now-bar span { display: block; height: 100%; background: var(--primary); border-radius: 99px; transition: width .4s linear; }
-.now-lines { display: grid; gap: 8px; }
+.now-lines { display: grid; gap: 8px; align-content: center; }
+.now-meal {
+  border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
+  background: #fffdf7;
+}
+.now-meal-head {
+  margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px;
+  font-size: 12px; font-weight: 800; color: #9a5a18;
+}
+.now-meal-kcal { margin-left: auto; font-size: 10px; font-weight: 700; color: #b08048; white-space: nowrap; }
+.now-meal-body { font-size: 12px; color: #4a5670; line-height: 1.55; }
+.now-meal-body p { margin: 0; }
+.now-meal-body ul { margin: 0; padding: 0; list-style: none; }
+.now-meal-body li { padding-left: 10px; position: relative; }
+.now-meal-body li::before { content: '·'; position: absolute; left: 2px; color: #c9a06a; }
+.now-meal-group + .now-meal-group { margin-top: 8px; }
+.now-meal-name {
+  display: inline-block; margin-bottom: 3px; padding: 1px 7px; border-radius: 99px;
+  background: #f6e8d4; color: #9a5a18; font-size: 10px; font-weight: 800;
+}
+.now-meal-retry {
+  margin-left: 6px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 99px;
+  background: #fff; color: #59647b; font-size: 10px; font-weight: 700; cursor: pointer;
+}
+.now-meal-body a { color: var(--primary); font-weight: 700; }
 .now-line { margin: 0; display: flex; gap: 10px; align-items: baseline; font-size: 15px; font-weight: 700; color: var(--ink); }
 .now-line + .now-line { font-size: 13px; font-weight: 600; color: var(--muted); }
 .now-key {
@@ -338,6 +362,11 @@ textarea { resize: vertical; line-height: 1.65; }
   background: #eef1f8; color: #59647b; font-size: 10px; font-weight: 800; vertical-align: 1px;
 }
 .now-tag.notice { background: var(--primary-soft); color: var(--primary); }
+@media (max-width: 1100px) {
+  .now-main { grid-template-columns: minmax(200px, 1fr) minmax(0, 1.2fr); }
+  .now-meal { grid-column: 1 / -1; }
+}
+
 @media (max-width: 720px) {
   .now-main { grid-template-columns: 1fr; }
   .now-clock { font-size: 24px; }
