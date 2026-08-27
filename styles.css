@@ -316,40 +316,47 @@ textarea { resize: vertical; line-height: 1.65; }
   .auth-card { padding: 28px 22px; }
 }
 
-/* ── 지금 이 시간 패널 ───────────────────────────────────────── */
+/* ── 지금 이 시간 패널 ─────────────────────────────────────────
+   세 칸이 같은 폭·같은 행 높이를 쓰도록 한 벌의 규칙으로 맞춘다.
+   1행 28px / 2행 이후 22px, 행 간격 4px, 카드 안쪽 여백 14px 16px.
+   숫자를 바꿀 때는 세 칸을 함께 고쳐야 줄이 어긋나지 않는다. */
 .now-panel { margin-bottom: 18px; }
+.now-panel .section-heading { align-items: center; justify-content: flex-start; gap: 22px; }
 .now-clock {
   font-variant-numeric: tabular-nums;
   font-size: 30px; font-weight: 900; letter-spacing: .02em;
   color: var(--ink); line-height: 1;
 }
 .now-main {
-  display: grid; grid-template-columns: minmax(170px, .8fr) minmax(0, 1fr) minmax(180px, .9fr);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px; align-items: stretch; margin-top: 14px;
 }
-.now-slot {
+.now-slot, .now-lines, .now-meal {
   border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
-  background: var(--primary-soft);
 }
+.now-slot { background: var(--primary-soft); }
 .now-slot[data-tone="free"] { background: #f5f7fb; }
 .now-slot[data-tone="event"] { background: #fff7ed; }
 .now-slot[data-tone="guess"] { background: #fdf6e3; }
 .now-slot[data-tone="off"] { background: #f5f7fb; }
-.now-period { display: block; font-size: 21px; font-weight: 900; color: var(--ink); }
-.now-remain { display: block; margin-top: 3px; font-size: 13px; font-weight: 700; color: var(--primary); }
-.now-bar { display: block; margin-top: 10px; height: 5px; border-radius: 99px; background: #dfe5f3; overflow: hidden; }
+.now-period { display: block; font-size: 20px; line-height: 28px; font-weight: 900; color: var(--ink); }
+.now-remain { display: block; margin-top: 4px; font-size: 15px; line-height: 22px; font-weight: 700; color: var(--primary); }
+.now-bar { display: block; margin-top: 12px; height: 5px; border-radius: 99px; background: #dfe5f3; overflow: hidden; }
 .now-bar span { display: block; height: 100%; background: var(--primary); border-radius: 99px; transition: width .4s linear; }
-.now-lines { display: grid; gap: 10px; align-content: center; }
-.now-meal {
-  border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
-  background: #fffdf7;
+
+.now-lines { display: grid; gap: 4px; align-content: start; background: #fff; }
+.now-line { margin: 0; display: flex; gap: 10px; align-items: center; font-size: 20px; line-height: 28px; font-weight: 800; color: var(--ink); }
+.now-line + .now-line { font-size: 15px; line-height: 22px; font-weight: 600; color: #6b7590; }
+.now-key {
+  /* line-height를 물려받으면 알약이 행 높이를 밀어 올려 2행이 어긋난다. */
+  flex: none; min-width: 40px; padding: 3px 9px; border-radius: 99px; line-height: 1.2;
+  background: #eef1f8; color: #59647b; font-size: 11px; font-weight: 800; text-align: center;
 }
-.now-meal-head {
-  margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px;
-  font-size: 13px; font-weight: 800; color: #9a5a18;
-}
-.now-meal-body { font-size: 15px; color: #3c4763; line-height: 1.6; }
-.now-meal-body p { margin: 0; font-size: 13px; }
+
+.now-meal { background: #fffdf7; }
+.now-meal-head { margin: 0 0 4px; font-size: 12px; line-height: 28px; font-weight: 800; color: #9a5a18; }
+.now-meal-body { font-size: 15px; line-height: 22px; color: #3c4763; }
+.now-meal-body p { margin: 0; }
 /* 메뉴가 길면 카드 안에서 2단으로 흐르게 둔다. */
 .now-meal-body ul { margin: 0; padding: 0; list-style: none; columns: 2; column-gap: 16px; }
 .now-meal-body li { padding-left: 11px; position: relative; break-inside: avoid; font-weight: 600; }
@@ -357,21 +364,16 @@ textarea { resize: vertical; line-height: 1.65; }
 .now-meal-group + .now-meal-group { margin-top: 8px; }
 .now-meal-name {
   display: inline-block; margin-bottom: 3px; padding: 1px 7px; border-radius: 99px;
-  background: #f6e8d4; color: #9a5a18; font-size: 10px; font-weight: 800;
+  background: #f6e8d4; color: #9a5a18; font-size: 11px; font-weight: 800;
 }
 .now-meal-retry {
   margin-left: 6px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 99px;
-  background: #fff; color: #59647b; font-size: 10px; font-weight: 700; cursor: pointer;
+  background: #fff; color: #59647b; font-size: 11px; font-weight: 700; cursor: pointer;
 }
 .now-meal-body a { color: var(--primary); font-weight: 700; }
-.now-line { margin: 0; display: flex; gap: 11px; align-items: baseline; font-size: 19px; font-weight: 800; color: var(--ink); line-height: 1.35; }
-.now-line + .now-line { font-size: 15px; font-weight: 600; color: #6b7590; }
-.now-key {
-  flex: none; min-width: 40px; padding: 4px 9px; border-radius: 99px;
-  background: #eef1f8; color: #59647b; font-size: 11px; font-weight: 800; text-align: center;
-}
+
 @media (max-width: 860px) {
-  .now-main { grid-template-columns: minmax(180px, 1fr) minmax(0, 1.2fr); }
+  .now-main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .now-meal { grid-column: 1 / -1; }
 }
 
@@ -381,7 +383,8 @@ textarea { resize: vertical; line-height: 1.65; }
 
 @media (max-width: 720px) {
   .now-main { grid-template-columns: 1fr; }
+  .now-panel .section-heading { gap: 12px; }
   .now-clock { font-size: 24px; }
-  .now-line { font-size: 16px; }
-  .now-line + .now-line { font-size: 14px; }
+  .now-period, .now-line { font-size: 17px; line-height: 24px; }
+  .now-remain, .now-line + .now-line { font-size: 14px; line-height: 20px; }
 }
