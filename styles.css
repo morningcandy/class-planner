@@ -338,35 +338,7 @@ textarea { resize: vertical; line-height: 1.65; }
   background: #eef1f8; color: #59647b; font-size: 10px; font-weight: 800; vertical-align: 1px;
 }
 .now-tag.notice { background: var(--primary-soft); color: var(--primary); }
-.now-tag.guess { background: #fdf6e3; color: #9a7318; }
-.now-periods {
-  margin-top: 14px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
-}
-.now-row {
-  display: grid; grid-template-columns: 72px 96px 1fr; gap: 10px; align-items: center;
-  padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #edf0f5;
-}
-.now-row:last-child { border-bottom: 0; }
-.now-row-label { font-weight: 800; color: #59647b; }
-.now-row-time { color: #8a93a6; font-variant-numeric: tabular-nums; }
-.now-row-plan { color: var(--ink); font-weight: 700; }
-.now-row.tone-free .now-row-plan { color: var(--muted); font-weight: 600; }
-.now-row.tone-off .now-row-plan { color: var(--muted); font-weight: 600; }
-.now-row.tone-class .now-row-plan { color: var(--subject); }
-.now-row.tone-event .now-row-plan { color: var(--warning); }
-.now-row.tone-guess .now-row-plan { color: #9a7318; }
-.now-row.active { background: var(--primary-soft); box-shadow: inset 3px 0 0 var(--primary); }
-.now-row.upcoming { background: #fafbff; }
-
-/* 넓은 화면에서는 9줄이 세로로 길어지므로 두 칸으로 접어 보여준다. */
-@media (min-width: 900px) {
-  .now-periods { display: grid; grid-auto-flow: column; grid-template-rows: repeat(5, auto); grid-template-columns: 1fr 1fr; }
-  .now-periods .now-row:nth-child(5) { border-bottom: 0; }
-  .now-periods .now-row:nth-child(-n+5) { border-right: 1px solid var(--line); }
-}
-
 @media (max-width: 720px) {
   .now-main { grid-template-columns: 1fr; }
   .now-clock { font-size: 24px; }
-  .now-row { grid-template-columns: 60px 84px 1fr; gap: 8px; }
 }

@@ -729,8 +729,10 @@
     const myClass = myClassAt(context, period);
     if (context.noClass) return { text: '수업 없음', tone: 'off', myClass: '', override: null };
     if (override) {
+      /* 추정값은 반드시 티가 나게 적는다. 교사가 학교 일정을 다시 확인해야 하기 때문. */
+      const label = override.guess ? `${override.label}(추정)` : override.label;
       return {
-        text: override.label + (myClass ? ` (원래 ${myClass} 수업)` : ''),
+        text: label + (myClass ? ` · 원래 ${myClass} 수업` : ''),
         tone: override.guess ? 'guess' : 'event',
         myClass,
         override,
@@ -824,22 +826,6 @@
     $('nowNote').innerHTML = notes.length
       ? notes.map((note) => `<p><span class="now-tag ${note.source === '학사일정' ? '' : 'notice'}">${escapeHtml(note.source)}</span>${escapeHtml(note.title)}</p>`).join('')
       : '<p class="muted">오늘 학사일정·시간표 변동 안내가 없습니다.</p>';
-
-    const listHtml = BELL.map((slot) => {
-      const plan = slotPlan(context, slot);
-      const classes = ['now-row', `tone-${plan.tone}`];
-      if (bell.phase === 'in' && bell.slot === slot) classes.push('active');
-      if ((bell.phase === 'break' || bell.phase === 'before') && bell.next === slot) classes.push('upcoming');
-      const badge = plan.override
-        ? `<span class="now-tag ${plan.override.guess ? 'guess' : plan.override.source === '학사일정' ? '' : 'notice'}">${escapeHtml(plan.override.source)}</span>`
-        : '';
-      return `<div class="${classes.join(' ')}"><span class="now-row-label">${escapeHtml(slot.label)}</span><span class="now-row-time">${slot.start}~${slot.end}</span><span class="now-row-plan">${escapeHtml(plan.text)}${badge}</span></div>`;
-    }).join('');
-    const listBox = $('nowPeriodList');
-    if (listBox.dataset.signature !== listHtml) {
-      listBox.dataset.signature = listHtml;
-      listBox.innerHTML = listHtml;
-    }
   }
 
   // 시간표 계산 로직은 브라우저 콘솔·테스트에서 단독으로 확인할 수 있게 열어 둔다.
