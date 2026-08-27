@@ -798,7 +798,6 @@
     return rows.map((row) => ({
       name: row.MMEAL_SC_NM || '급식',
       dishes: String(row.DDISH_NM || '').split(/<br\s*\/?>/i).map(cleanDish).filter(Boolean),
-      calorie: String(row.CAL_INFO || '').trim(),
     })).filter((meal) => meal.dishes.length);
   }
 
@@ -815,8 +814,6 @@
   }
 
   function renderMealBody(meals) {
-    const kcal = meals.map((meal) => meal.calorie).find(Boolean) || '';
-    $('nowMealKcal').textContent = kcal ? kcal.replace(/\s*Kcal$/i, ' kcal') : '';
     if (!meals.length) {
       $('nowMealBody').innerHTML = '<p class="muted">오늘은 등록된 급식이 없습니다.</p>';
       return;
@@ -829,7 +826,6 @@
   }
 
   function renderMealError(message) {
-    $('nowMealKcal').textContent = '';
     const link = SCHOOL_MEAL_URL
       ? ` <a href="${escapeHtml(SCHOOL_MEAL_URL)}" target="_blank" rel="noopener">학교 홈페이지에서 보기</a>`
       : '';
