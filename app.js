@@ -561,11 +561,296 @@
       : '<strong>이번 달 학사일정</strong><br>등록된 학사일정이 없습니다.';
   }
 
+  /* ── 지금 이 시간: 시정표 · 내 시간표 ──────────────────────────────
+     시정표(BELL)와 내 시간표(MY_TIMETABLE)는 index.html 사이드 패널과
+     같은 값을 쓴다. 한쪽만 고치면 화면이 어긋나므로 함께 수정할 것. */
+  const BELL = [
+    { label: '아침조회', start: '08:00', end: '08:10', kind: 'homeroom' },
+    { label: '1교시', start: '08:20', end: '09:10', kind: 'period', period: 1 },
+    { label: '2교시', start: '09:20', end: '10:10', kind: 'period', period: 2 },
+    { label: '3교시', start: '10:20', end: '11:10', kind: 'period', period: 3 },
+    { label: '4교시', start: '11:20', end: '12:10', kind: 'period', period: 4 },
+    { label: '점심시간', start: '12:10', end: '13:10', kind: 'lunch' },
+    { label: '5교시', start: '13:10', end: '14:00', kind: 'period', period: 5 },
+    { label: '6교시', start: '14:10', end: '15:00', kind: 'period', period: 6 },
+    { label: '7교시', start: '15:10', end: '16:00', kind: 'period', period: 7 },
+  ];
+
+  // 교시 → [월, 화, 수, 목, 금]
+  const MY_TIMETABLE = {
+    1: ['35D', '28B', '24C', '24C', ''],
+    2: ['', '38A', '', '', ''],
+    3: ['', '36B', '36B', '36B', ''],
+    4: ['', '', '', '', ''],
+    5: ['', '', '', '', '35D'],
+    6: ['38A', '', '', '38A', '24C'],
+    7: ['28B', '35D', '', '28B', ''],
+  };
+
+  const WEEKDAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+  const CHANGE_HINT = /시간표|교시|자율활동|동아리|창체|단축|조회/;
+
+  function toMinutes(hhmm) {
+    const [hour, minute] = String(hhmm).split(':').map(Number);
+    return hour * 60 + minute;
+  }
+
+  function minuteLabel(minutes) {
+    const value = Math.max(0, Math.ceil(minutes));
+    if (value >= 60) {
+      const hour = Math.floor(value / 60);
+      const rest = value % 60;
+      return rest ? `${hour}시간 ${rest}분` : `${hour}시간`;
+    }
+    return `${value}분`;
+  }
+
+  function expandPeriods(spec) {
+    const out = [];
+    String(spec).split(',').forEach((chunk) => {
+      const range = chunk.match(/(\d)\s*[~\-]\s*(\d)/);
+      if (range) {
+        for (let period = Number(range[1]); period <= Number(range[2]); period += 1) out.push(period);
+        return;
+      }
+      const single = Number(chunk.trim());
+      if (single >= 1 && single <= 7) out.push(single);
+    });
+    return out;
+  }
+
+  /* "동아리활동(6,7교시) / 수요일 시간표로 수업" 같은 문장에서
+     ① 요일 대체 ② 교시별 대체 활동을 뽑아낸다. */
+  function parseTimetableHints(text) {
+    const hints = { weekday: null, periods: {} };
+    if (!text) return hints;
+    const swap = String(text).match(/([월화수목금])요일\s*시간표/);
+    if (swap) hints.weekday = WEEKDAY_NAMES.indexOf(swap[1]);
+    String(text).split(/\s*(?:\/|\n|;)\s*/).forEach((segment) => {
+      const matched = segment.match(/\(?\s*((?:\d\s*[,~\-]\s*)*\d)\s*교시\s*\)?/);
+      if (!matched) return;
+      const label = segment.replace(matched[0], ' ').replace(/[()[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!label || /시간표/.test(label)) return;
+      expandPeriods(matched[1]).forEach((period) => { hints.periods[period] = label; });
+    });
+    return hints;
+  }
+
+  /* 오늘 날짜에 걸리는 학급 공지 중 시간표 변동이 담긴 것만 고른다. */
+  function noticeHintSources(dateStr) {
+    const dayText = `${Number(dateStr.slice(5, 7))}월 ${Number(dateStr.slice(8, 10))}일`;
+    return state.notices
+      .filter((notice) => notice.status === '게시됨' || notice.status === '검토대기')
+      .filter((notice) => {
+        const text = `${notice.title || ''} ${notice.content || ''}`;
+        if (!CHANGE_HINT.test(text)) return false;
+        if (notice.notice_date === dateStr || notice.due_date === dateStr) return true;
+        return text.includes(dayText);
+      })
+      .map((notice) => ({
+        text: `${notice.title || ''} / ${notice.content || ''}`,
+        source: notice.status === '게시됨' ? '학급 공지' : '검토 대기 공지',
+        title: notice.title || '',
+      }));
+  }
+
+  function dayContext(dateStr, dateObj) {
+    const baseWeekday = dateObj.getDay();
+    const holiday = (typeof holidays !== 'undefined' ? holidays : []).find((entry) => entry.date === dateStr) || null;
+    const vacation = rangeFor(dateStr, 'vacation');
+    const special = rangeFor(dateStr, 'special');
+    const events = (typeof calendarEvents !== 'undefined' ? calendarEvents : []).filter((event) => event.date === dateStr);
+
+    const context = {
+      dateStr,
+      baseWeekday,
+      weekday: baseWeekday,
+      swap: null,
+      overrides: {},
+      notes: [],
+      noClass: false,
+      noClassReason: '',
+    };
+
+    if (baseWeekday === 0 || baseWeekday === 6) {
+      context.noClass = true;
+      context.noClassReason = '주말';
+    }
+    if (holiday) {
+      context.noClass = true;
+      context.noClassReason = holiday.short || holiday.title;
+    }
+    if (vacation && !vacation.weekdayOnly) {
+      context.noClass = true;
+      context.noClassReason = vacation.title;
+    }
+
+    const sources = events
+      .map((event) => ({ text: event.title, source: '학사일정', title: event.title }))
+      .concat(noticeHintSources(dateStr));
+
+    sources.forEach((entry) => {
+      const hints = parseTimetableHints(entry.text);
+      if (hints.weekday >= 1 && hints.weekday <= 5) {
+        context.weekday = hints.weekday;
+        context.swap = { weekday: hints.weekday, source: entry.source };
+      }
+      Object.entries(hints.periods).forEach(([period, label]) => {
+        context.overrides[period] = { label, source: entry.source };
+      });
+      context.notes.push({ title: entry.title || entry.text, source: entry.source });
+    });
+
+    /* 수요일 6·7교시는 창체 시간이다. 학사일정·공지에 동아리활동 표기가
+       없으면 자율활동으로 본다. 다른 요일 시간표를 빌려 쓰는 날은 제외. */
+    if (baseWeekday === 3 && !context.swap && !context.noClass) {
+      [6, 7].forEach((period) => {
+        if (!context.overrides[period]) {
+          context.overrides[period] = { label: '자율활동', source: '수요일 창체(추정)', guess: true };
+        }
+      });
+    }
+
+    if (special) context.notes.push({ title: special.title, source: '학사일정' });
+    if (vacation) context.notes.push({ title: vacation.title, source: '학사일정' });
+    return context;
+  }
+
+  function myClassAt(context, period) {
+    if (context.noClass) return '';
+    const index = context.weekday - 1;
+    if (index < 0 || index > 4) return '';
+    return (MY_TIMETABLE[period] || [])[index] || '';
+  }
+
+  /* 한 교시가 실제로 어떤 시간인지 한 줄로 정리한다. */
+  function periodPlan(context, period) {
+    const override = context.overrides[period];
+    const myClass = myClassAt(context, period);
+    if (context.noClass) return { text: '수업 없음', tone: 'off', myClass: '', override: null };
+    if (override) {
+      return {
+        text: override.label + (myClass ? ` (원래 ${myClass} 수업)` : ''),
+        tone: override.guess ? 'guess' : 'event',
+        myClass,
+        override,
+      };
+    }
+    if (myClass) return { text: `${myClass} 수업`, tone: 'class', myClass, override: null };
+    return { text: '공강', tone: 'free', myClass: '', override: null };
+  }
+
+  function slotPlan(context, slot) {
+    if (context.noClass) return { text: '수업 없는 날', tone: 'off', override: null };
+    if (slot.kind === 'homeroom') return { text: '아침조회 (우리 반)', tone: 'event', override: null };
+    if (slot.kind === 'lunch') return { text: '점심시간', tone: 'free', override: null };
+    return periodPlan(context, slot.period);
+  }
+
+  function bellStateAt(nowMinutes) {
+    for (let index = 0; index < BELL.length; index += 1) {
+      const slot = BELL[index];
+      const start = toMinutes(slot.start);
+      const end = toMinutes(slot.end);
+      if (nowMinutes >= start && nowMinutes < end) {
+        return { phase: 'in', slot, index, next: BELL[index + 1] || null, remain: end - nowMinutes, progress: (nowMinutes - start) / (end - start) };
+      }
+      if (nowMinutes < start) {
+        return { phase: index === 0 ? 'before' : 'break', slot: null, index, next: slot, remain: start - nowMinutes, progress: 0 };
+      }
+    }
+    return { phase: 'after', slot: null, index: BELL.length, next: null, remain: 0, progress: 1 };
+  }
+
+  function renderNow() {
+    if (!$('nowPanel')) return;
+    const nowDate = new Date();
+    const dateStr = today();
+    const nowMinutes = nowDate.getHours() * 60 + nowDate.getMinutes() + nowDate.getSeconds() / 60;
+    const context = dayContext(dateStr, nowDate);
+    const bell = bellStateAt(nowMinutes);
+
+    $('nowClock').textContent = [nowDate.getHours(), nowDate.getMinutes(), nowDate.getSeconds()]
+      .map((value) => String(value).padStart(2, '0')).join(':');
+    $('nowDateLabel').textContent = dateLabel(dateStr);
+    $('nowDaySource').textContent = context.noClass
+      ? `${context.noClassReason} · 수업 없음`
+      : context.swap
+        ? `${WEEKDAY_NAMES[context.swap.weekday]}요일 시간표로 수업 (${context.swap.source} 반영)`
+        : `${WEEKDAY_NAMES[context.weekday]}요일 시간표`;
+
+    let periodText = '—';
+    let remainText = '';
+    let nowText = '—';
+    let tone = 'off';
+
+    if (context.noClass) {
+      periodText = context.noClassReason;
+      nowText = '수업 없는 날입니다.';
+    } else if (bell.phase === 'before') {
+      periodText = '등교 전';
+      remainText = `${bell.next.label}까지 ${minuteLabel(bell.remain)}`;
+      nowText = '아직 일과가 시작되지 않았습니다.';
+      tone = 'free';
+    } else if (bell.phase === 'after') {
+      periodText = '일과 종료';
+      nowText = '오늘 수업이 모두 끝났습니다.';
+      tone = 'free';
+    } else if (bell.phase === 'break') {
+      periodText = '쉬는 시간';
+      remainText = `${bell.next.label}까지 ${minuteLabel(bell.remain)}`;
+      nowText = `다음은 ${bell.next.label} · ${slotPlan(context, bell.next).text}`;
+      tone = 'free';
+    } else {
+      const plan = slotPlan(context, bell.slot);
+      periodText = bell.slot.label;
+      remainText = `${minuteLabel(bell.remain)} 남음`;
+      nowText = plan.text;
+      tone = plan.tone;
+    }
+
+    $('nowPeriod').textContent = periodText;
+    $('nowRemain').textContent = remainText;
+    $('nowSubject').textContent = nowText;
+    $('nowSlot').dataset.tone = tone;
+    $('nowBar').style.width = `${Math.round((bell.phase === 'in' ? bell.progress : 0) * 100)}%`;
+
+    const upcoming = bell.phase === 'in' ? bell.next : (bell.next ? BELL[BELL.indexOf(bell.next) + 1] : null);
+    $('nextSubject').textContent = context.noClass || !upcoming
+      ? '예정된 다음 시간이 없습니다.'
+      : `${upcoming.label} (${upcoming.start}) · ${slotPlan(context, upcoming).text}`;
+
+    const notes = context.notes.filter((note, index, all) => all.findIndex((entry) => entry.title === note.title) === index);
+    $('nowNote').innerHTML = notes.length
+      ? notes.map((note) => `<p><span class="now-tag ${note.source === '학사일정' ? '' : 'notice'}">${escapeHtml(note.source)}</span>${escapeHtml(note.title)}</p>`).join('')
+      : '<p class="muted">오늘 학사일정·시간표 변동 안내가 없습니다.</p>';
+
+    const listHtml = BELL.map((slot) => {
+      const plan = slotPlan(context, slot);
+      const classes = ['now-row', `tone-${plan.tone}`];
+      if (bell.phase === 'in' && bell.slot === slot) classes.push('active');
+      if ((bell.phase === 'break' || bell.phase === 'before') && bell.next === slot) classes.push('upcoming');
+      const badge = plan.override
+        ? `<span class="now-tag ${plan.override.guess ? 'guess' : plan.override.source === '학사일정' ? '' : 'notice'}">${escapeHtml(plan.override.source)}</span>`
+        : '';
+      return `<div class="${classes.join(' ')}"><span class="now-row-label">${escapeHtml(slot.label)}</span><span class="now-row-time">${slot.start}~${slot.end}</span><span class="now-row-plan">${escapeHtml(plan.text)}${badge}</span></div>`;
+    }).join('');
+    const listBox = $('nowPeriodList');
+    if (listBox.dataset.signature !== listHtml) {
+      listBox.dataset.signature = listHtml;
+      listBox.innerHTML = listHtml;
+    }
+  }
+
+  // 시간표 계산 로직은 브라우저 콘솔·테스트에서 단독으로 확인할 수 있게 열어 둔다.
+  window.ClassPlannerTimetable = { BELL, MY_TIMETABLE, parseTimetableHints, dayContext, bellStateAt, slotPlan, periodPlan };
+
   function renderAll() {
     renderSummary();
     renderNotices();
     renderPlanner();
     renderCalendar();
+    renderNow();
   }
 
   function openModal(id) { $(id).classList.remove('hidden'); }
@@ -935,6 +1220,8 @@
   if ($('claudeBridgeUrl').value && $('claudeBridgeKey').value) setClaudeState('연결 확인 필요', 'pending');
   renderClaudeMessages();
   renderCalendar();
+  renderNow();
+  setInterval(renderNow, 1000);
   if (state.token) unlock(state.token);
   else setTimeout(() => $('tokenInput').focus(), 30);
 })();
