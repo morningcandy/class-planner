@@ -260,7 +260,7 @@
       sessionStorage.setItem(AUTH_KEY, token);
       $('authScreen').classList.add('hidden');
       $('app').classList.remove('hidden');
-      fitMealColumns();
+      fitMealDishes();
       $('authMessage').textContent = '';
     } catch (error) {
       state.token = '';
@@ -866,18 +866,23 @@
         ${meals.length > 1 ? `<span class="now-meal-name">${escapeHtml(meal.name)}</span>` : ''}
         <ul>${meal.dishes.map((dish) => `<li>${escapeHtml(dish)}</li>`).join('')}</ul>
       </div>`).join('');
-    fitMealColumns();
+    fitMealDishes();
   }
 
-  /* 메뉴 이름은 줄바꿈하지 않는다. 2단으로는 잘리는 긴 이름이 있으면
-     그 목록만 1단으로 떨어뜨려 이름이 온전히 보이게 한다. */
-  function fitMealColumns() {
-    $('nowMealBody').querySelectorAll('ul').forEach((list) => {
+  /* 메뉴 이름은 줄바꿈하지 않는다. 2단 폭을 넘는 긴 이름은 그 항목만
+     글자를 한 단계씩 줄여 한 줄에 넣는다. 줄 높이는 22px로 고정돼 있어
+     글자가 작아져도 옆 칸과의 행 맞춤은 그대로 유지된다. */
+  const MEAL_FONT_STEPS = [15, 14, 13, 12, 11];
+
+  function fitMealDishes() {
+    $('nowMealBody').querySelectorAll('li').forEach((row) => {
+      row.style.fontSize = '';
       // 로그인 전에는 화면이 숨겨져 폭이 0이라 재도 의미가 없다.
-      if (!list.clientWidth) return;
-      list.classList.remove('single-column');
-      const clipped = Array.from(list.querySelectorAll('li')).some((row) => row.scrollWidth > row.clientWidth);
-      if (clipped) list.classList.add('single-column');
+      if (!row.clientWidth) return;
+      for (let i = 0; i < MEAL_FONT_STEPS.length; i += 1) {
+        row.style.fontSize = `${MEAL_FONT_STEPS[i]}px`;
+        if (row.scrollWidth <= row.clientWidth) return;
+      }
     });
   }
 
@@ -1365,8 +1370,8 @@
   renderNow();
   setInterval(renderNow, 1000);
   window.addEventListener('resize', () => {
-    clearTimeout(fitMealColumns.timer);
-    fitMealColumns.timer = setTimeout(fitMealColumns, 150);
+    clearTimeout(fitMealDishes.timer);
+    fitMealDishes.timer = setTimeout(fitMealDishes, 150);
   });
   if (state.token) unlock(state.token);
   else setTimeout(() => $('tokenInput').focus(), 30);

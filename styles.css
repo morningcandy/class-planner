@@ -327,6 +327,7 @@ textarea { resize: vertical; line-height: 1.65; }
   gap: 16px; align-items: center;
 }
 .now-clock {
+  grid-column: 3;
   font-variant-numeric: tabular-nums;
   font-size: 30px; font-weight: 900; letter-spacing: .02em;
   color: var(--ink); line-height: 1;
@@ -363,7 +364,6 @@ textarea { resize: vertical; line-height: 1.65; }
 .now-meal-body p { margin: 0; }
 /* 메뉴가 길면 카드 안에서 2단으로 흐르게 둔다. */
 .now-meal-body ul { margin: 0; padding: 0; list-style: none; columns: 2; column-gap: 16px; }
-.now-meal-body ul.single-column { columns: 1; }
 .now-meal-body li {
   padding-left: 11px; position: relative; break-inside: avoid; font-weight: 600;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
