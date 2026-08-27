@@ -260,7 +260,7 @@
       sessionStorage.setItem(AUTH_KEY, token);
       $('authScreen').classList.add('hidden');
       $('app').classList.remove('hidden');
-      fitMealDishes();
+      layoutNowPanel();
       $('authMessage').textContent = '';
     } catch (error) {
       state.token = '';
@@ -866,13 +866,35 @@
         ${meals.length > 1 ? `<span class="now-meal-name">${escapeHtml(meal.name)}</span>` : ''}
         <ul>${meal.dishes.map((dish) => `<li>${escapeHtml(dish)}</li>`).join('')}</ul>
       </div>`).join('');
-    fitMealDishes();
+    layoutNowPanel();
   }
 
   /* 메뉴 이름은 줄바꿈하지 않는다. 2단 폭을 넘는 긴 이름은 그 항목만
      글자를 한 단계씩 줄여 한 줄에 넣는다. 줄 높이는 22px로 고정돼 있어
      글자가 작아져도 옆 칸과의 행 맞춤은 그대로 유지된다. */
   const MEAL_FONT_STEPS = [15, 14, 13, 12, 11];
+
+  /* 시계는 급식 카드의 '급식' 글자 바로 위에 선다. 글자 폭은 글꼴에 따라
+     달라지므로 값을 박아 두지 않고 실제 위치를 재서 맞춘다. */
+  function alignClockToMealWord() {
+    const clock = $('nowClock');
+    const word = $('mealHeadWord');
+    const card = $('nowMeal');
+    const heading = document.querySelector('.now-panel .section-heading');
+    if (!clock || !word || !card || !heading) return;
+    // 좁은 화면에서는 헤딩이 한 줄로 흐르므로 보정하지 않는다.
+    if (getComputedStyle(heading).display !== 'grid' || !word.getClientRects().length) {
+      clock.style.marginLeft = '';
+      return;
+    }
+    const offset = Math.round(word.getBoundingClientRect().left - card.getBoundingClientRect().left);
+    clock.style.marginLeft = offset > 0 ? `${offset}px` : '';
+  }
+
+  function layoutNowPanel() {
+    fitMealDishes();
+    alignClockToMealWord();
+  }
 
   function fitMealDishes() {
     $('nowMealBody').querySelectorAll('li').forEach((row) => {
@@ -1370,8 +1392,8 @@
   renderNow();
   setInterval(renderNow, 1000);
   window.addEventListener('resize', () => {
-    clearTimeout(fitMealDishes.timer);
-    fitMealDishes.timer = setTimeout(fitMealDishes, 150);
+    clearTimeout(layoutNowPanel.timer);
+    layoutNowPanel.timer = setTimeout(layoutNowPanel, 150);
   });
   if (state.token) unlock(state.token);
   else setTimeout(() => $('tokenInput').focus(), 30);
