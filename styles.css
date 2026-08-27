@@ -339,7 +339,7 @@ textarea { resize: vertical; line-height: 1.65; }
 .now-remain { display: block; margin-top: 3px; font-size: 13px; font-weight: 700; color: var(--primary); }
 .now-bar { display: block; margin-top: 10px; height: 5px; border-radius: 99px; background: #dfe5f3; overflow: hidden; }
 .now-bar span { display: block; height: 100%; background: var(--primary); border-radius: 99px; transition: width .4s linear; }
-.now-lines { display: grid; gap: 8px; align-content: center; }
+.now-lines { display: grid; gap: 10px; align-content: center; }
 .now-meal {
   border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
   background: #fffdf7;
@@ -364,11 +364,11 @@ textarea { resize: vertical; line-height: 1.65; }
   background: #fff; color: #59647b; font-size: 10px; font-weight: 700; cursor: pointer;
 }
 .now-meal-body a { color: var(--primary); font-weight: 700; }
-.now-line { margin: 0; display: flex; gap: 10px; align-items: baseline; font-size: 15px; font-weight: 700; color: var(--ink); }
-.now-line + .now-line { font-size: 13px; font-weight: 600; color: var(--muted); }
+.now-line { margin: 0; display: flex; gap: 11px; align-items: baseline; font-size: 19px; font-weight: 800; color: var(--ink); line-height: 1.35; }
+.now-line + .now-line { font-size: 15px; font-weight: 600; color: #6b7590; }
 .now-key {
-  flex: none; min-width: 34px; padding: 3px 8px; border-radius: 99px;
-  background: #eef1f8; color: #59647b; font-size: 10px; font-weight: 800; text-align: center;
+  flex: none; min-width: 40px; padding: 4px 9px; border-radius: 99px;
+  background: #eef1f8; color: #59647b; font-size: 11px; font-weight: 800; text-align: center;
 }
 @media (max-width: 860px) {
   .now-main { grid-template-columns: minmax(180px, 1fr) minmax(0, 1.2fr); }
@@ -382,4 +382,6 @@ textarea { resize: vertical; line-height: 1.65; }
 @media (max-width: 720px) {
   .now-main { grid-template-columns: 1fr; }
   .now-clock { font-size: 24px; }
+  .now-line { font-size: 16px; }
+  .now-line + .now-line { font-size: 14px; }
 }
