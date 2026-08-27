@@ -260,6 +260,7 @@
       sessionStorage.setItem(AUTH_KEY, token);
       $('authScreen').classList.add('hidden');
       $('app').classList.remove('hidden');
+      fitMealColumns();
       $('authMessage').textContent = '';
     } catch (error) {
       state.token = '';
@@ -865,6 +866,19 @@
         ${meals.length > 1 ? `<span class="now-meal-name">${escapeHtml(meal.name)}</span>` : ''}
         <ul>${meal.dishes.map((dish) => `<li>${escapeHtml(dish)}</li>`).join('')}</ul>
       </div>`).join('');
+    fitMealColumns();
+  }
+
+  /* 메뉴 이름은 줄바꿈하지 않는다. 2단으로는 잘리는 긴 이름이 있으면
+     그 목록만 1단으로 떨어뜨려 이름이 온전히 보이게 한다. */
+  function fitMealColumns() {
+    $('nowMealBody').querySelectorAll('ul').forEach((list) => {
+      // 로그인 전에는 화면이 숨겨져 폭이 0이라 재도 의미가 없다.
+      if (!list.clientWidth) return;
+      list.classList.remove('single-column');
+      const clipped = Array.from(list.querySelectorAll('li')).some((row) => row.scrollWidth > row.clientWidth);
+      if (clipped) list.classList.add('single-column');
+    });
   }
 
   function renderMealError(message) {
@@ -1350,6 +1364,10 @@
   renderCalendar();
   renderNow();
   setInterval(renderNow, 1000);
+  window.addEventListener('resize', () => {
+    clearTimeout(fitMealColumns.timer);
+    fitMealColumns.timer = setTimeout(fitMealColumns, 150);
+  });
   if (state.token) unlock(state.token);
   else setTimeout(() => $('tokenInput').focus(), 30);
 })();
