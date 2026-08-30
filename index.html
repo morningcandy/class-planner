@@ -6,6 +6,11 @@
   <meta name="theme-color" content="#3157d5">
   <title>효니효의 개인 알림장</title>
   <link rel="stylesheet" href="styles.css?v=20260827-fix8">
+  <link rel="stylesheet" href="theme-b.css?v=20260830-themeb1">
+  <script>
+    /* 저장해 둔 디자인을 첫 페인트 전에 적용해 깜빡임을 막는다. */
+    try { var t = localStorage.getItem("classPlanner.theme.v1"); if (t) document.documentElement.setAttribute("data-theme", t); } catch (e) {}
+  </script>
 </head>
 <body>
   <div class="auth-screen" id="authScreen">
@@ -283,9 +288,20 @@
   </div>
 
   <div class="toast hidden" id="toast" role="status"></div>
+
+  <!-- 오른쪽 아래 디자인 전환 -->
+  <div class="theme-fab" id="themeFab">
+    <div class="theme-menu" id="themeMenu">
+      <button type="button" data-theme-set="light"><span class="swatch sw-light"></span>기본 · 라이트<span class="tick">✓</span></button>
+      <button type="button" data-theme-set="b"><span class="swatch sw-b"></span>포커스 · 다크<span class="tick">✓</span></button>
+      <p class="theme-note">고른 디자인은 이 브라우저에 저장됩니다.</p>
+    </div>
+    <button type="button" class="theme-btn" id="themeBtn">🎨 디자인</button>
+  </div>
   <script src="../class-notice/data.js"></script>
   <script src="config.js"></script>
   <script src="attachment-utils.js?v=20260816-files1"></script>
   <script src="app.js?v=20260827-fix8"></script>
+  <script src="theme-switch.js?v=20260830-themeb1"></script>
 </body>
 </html>

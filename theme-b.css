@@ -1,0 +1,231 @@
+/* ══════════════════════════════════════════════════════════════════════
+   theme-b.css — 포커스 다크 테마 (B안)
+
+   · styles.css 뒤에 실려 [data-theme="b"] 일 때만 위에 덮어씌운다.
+   · 기본(라이트) 테마일 때는 이 파일의 규칙이 하나도 적용되지 않는다.
+   · styles.css 의 :root 토큰을 먼저 갈아끼우고, 토큰을 쓰지 않고
+     색을 직접 박아둔 자리만 아래에서 따로 덮는다.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. 토큰 교체 ───────────────────────────────────────────────────── */
+[data-theme="b"] {
+  --ink: #E6E9EF;
+  --muted: #8892A4;
+  --line: #212936;
+  --surface: #141922;
+  --background: #0E1116;
+  --primary: #A3E635;          /* 라임 강조 */
+  --primary-soft: #1F2A16;
+  --class: #7DD3FC;
+  --subject: #86EFAC;
+  --personal: #C4B5FD;
+  --danger: #FB7185;
+  --warning: #FBBF24;
+  --success: #86EFAC;
+  --shadow: 0 16px 45px rgba(0, 0, 0, .55);
+
+  /* 라임 위에 얹는 글자색 — 흰색이면 안 보인다 */
+  --on-primary: #101317;
+  /* 카드보다 한 단 밝은 면 */
+  --raise: #1A202B;
+  --raise2: #12171F;
+}
+
+[data-theme="b"] html,
+html[data-theme="b"] { color-scheme: dark; }
+
+[data-theme="b"] body {
+  background:
+    radial-gradient(circle at 7% 0%, rgba(163, 230, 53, .07), transparent 28rem),
+    var(--background);
+}
+
+/* ── 2. 로그인 화면 ─────────────────────────────────────────────────── */
+[data-theme="b"] .auth-card {
+  background: rgba(20, 25, 34, .94);
+  border-color: rgba(255, 255, 255, .07);
+}
+[data-theme="b"] .auth-card label,
+[data-theme="b"] .modal label,
+[data-theme="b"] .field-pair label { color: #A9B3C4; }
+
+/* ── 3. 공통 컨트롤 ─────────────────────────────────────────────────── */
+[data-theme="b"] .brand-logo { box-shadow: 0 8px 20px rgba(0, 0, 0, .5); }
+[data-theme="b"] .primary { color: var(--on-primary); box-shadow: 0 8px 20px rgba(163, 230, 53, .14); }
+[data-theme="b"] .button.ghost { background: var(--raise); border-color: var(--line); color: #B8C0CE; }
+[data-theme="b"] .button.danger { background: #2A1519; }
+
+[data-theme="b"] input,
+[data-theme="b"] textarea,
+[data-theme="b"] select {
+  border-color: #2C3546;
+  background: var(--raise2);
+  color: var(--ink);
+}
+[data-theme="b"] input::placeholder,
+[data-theme="b"] textarea::placeholder { color: #4A5361; }
+[data-theme="b"] input:focus,
+[data-theme="b"] textarea:focus,
+[data-theme="b"] select:focus { box-shadow: 0 0 0 3px rgba(163, 230, 53, .16); }
+
+/* ── 4. 배너·메시지 ─────────────────────────────────────────────────── */
+[data-theme="b"] .connection-banner { background: #2A2312; border-color: #4A3D16; color: #FBBF24; }
+[data-theme="b"] .legacy-banner { background: #16304A; border-color: #24486B; color: #7DD3FC; }
+[data-theme="b"] .result-message { background: #14301F; color: #86EFAC; }
+[data-theme="b"] .result-message.warning { background: #2A2312; color: #FBBF24; }
+
+/* ── 5. 패널·카드 ───────────────────────────────────────────────────── */
+[data-theme="b"] .composer-card,
+[data-theme="b"] .panel {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: 0 9px 28px rgba(0, 0, 0, .35);
+}
+[data-theme="b"] .ai-state { background: #14301F; }
+[data-theme="b"] .ai-state.pending { background: #2A2312; color: #FBBF24; }
+[data-theme="b"] .ai-state.connected { background: #14301F; }
+[data-theme="b"] .ai-state.error { background: #2A1519; }
+[data-theme="b"] .command-chip { background: var(--raise); color: #9AA4B6; }
+
+/* ── 6. Claude 카드 ─────────────────────────────────────────────────── */
+[data-theme="b"] .claude-settings { border-color: #24486B; background: #12222E; }
+[data-theme="b"] .claude-chat { background: var(--raise2); border-color: var(--line); }
+[data-theme="b"] .claude-message.user > div:last-child { color: var(--on-primary); }
+[data-theme="b"] .claude-message.assistant > div:last-child { background: var(--raise); border-color: var(--line); }
+[data-theme="b"] .message-avatar { background: #2C3546; color: var(--ink); }
+[data-theme="b"] .claude-message.user .message-avatar { color: var(--on-primary); }
+[data-theme="b"] .attachment-button { border-color: #24486B; background: #12222E; }
+[data-theme="b"] .attachment-file { background: var(--raise); color: #9AA4B6; }
+[data-theme="b"] .claude-draft { border-color: #24486B; background: #12222E; }
+[data-theme="b"] .draft-heading > span { background: #2A2312; color: #FBBF24; }
+[data-theme="b"] .claude-draft textarea { background: var(--raise2); }
+
+/* ── 7. 요약 카드 ───────────────────────────────────────────────────── */
+[data-theme="b"] .summary-card { background: var(--surface); border-color: var(--line); }
+[data-theme="b"] .summary-card.red { border-top-color: #FB7185; }
+[data-theme="b"] .summary-card.orange { border-top-color: #FBBF24; }
+[data-theme="b"] .empty-state { border-color: #2C3546; }
+
+/* ── 8. 목록 행 ─────────────────────────────────────────────────────── */
+[data-theme="b"] .segmented { background: var(--raise2); }
+[data-theme="b"] .segmented button.active {
+  background: var(--primary); color: var(--on-primary); box-shadow: none;
+}
+[data-theme="b"] .notice-row,
+[data-theme="b"] .planner-row { background: var(--raise); border-color: var(--line); }
+[data-theme="b"] .row-bottom { border-top-color: var(--line); }
+[data-theme="b"] .row-note { color: #9AA4B6; }
+[data-theme="b"] .tag { background: #1C2530; color: #9AA4B6; }
+[data-theme="b"] .tag.class { background: #16304A; }
+[data-theme="b"] .tag.subject { background: #14301F; }
+[data-theme="b"] .tag.personal { background: #2C1E3F; }
+[data-theme="b"] .tag.urgent { background: #2A1519; }
+[data-theme="b"] .row-actions button { background: var(--raise2); border-color: var(--line); color: #9AA4B6; }
+[data-theme="b"] .row-actions .order-button { background: #1C2530; }
+[data-theme="b"] .row-actions .publish { color: var(--on-primary); }
+[data-theme="b"] .row-actions .danger { border-color: #7F2A35; }
+[data-theme="b"] .planner-row.compact { background: var(--raise2); }
+[data-theme="b"] .past-done { background: var(--raise2); border-color: var(--line); }
+[data-theme="b"] .past-done > summary { color: #9AA4B6; }
+[data-theme="b"] .past-done > summary::before { color: #5B6474; }
+
+/* ── 9. 달력 ────────────────────────────────────────────────────────── */
+[data-theme="b"] .calendar-nav button { background: var(--raise); color: #9AA4B6; }
+[data-theme="b"] .cal-cell { background: var(--raise2); color: #9AA4B6; }
+[data-theme="b"] .cal-cell:not(.blank):hover { border-color: #2C3546; }
+[data-theme="b"] .cal-cell.today { background: var(--primary); color: var(--on-primary); }
+[data-theme="b"] .cal-cell.school:not(.today) { background: #14261D; }
+[data-theme="b"] .cal-cell.exam:not(.today) { box-shadow: inset 0 -4px #FACC15; }
+[data-theme="b"] .cal-cell.prep:not(.today) { box-shadow: inset 0 -4px #64748B; }
+[data-theme="b"] .cal-cell.vacation:not(.today) { background: #171C24; color: #5B6474; }
+[data-theme="b"] .cal-cell.selected { outline-color: var(--primary); }
+[data-theme="b"] .cal-cell.sunday { color: #FB7185; }
+[data-theme="b"] .cal-cell.saturday { color: #7DD3FC; }
+/* 오늘이 주말이면 요일 색이 라임 배경을 덮어 읽히지 않는다 — 되돌린다. */
+[data-theme="b"] .cal-cell.today.sunday,
+[data-theme="b"] .cal-cell.today.saturday { color: var(--on-primary); }
+[data-theme="b"] .cal-entry { background: rgba(255, 255, 255, .06); color: #B8C0CE; }
+[data-theme="b"] .cal-entry.school { color: #8892A4; }
+[data-theme="b"] .cal-cell.today .cal-entry { background: rgba(16, 19, 23, .18); color: var(--on-primary); }
+[data-theme="b"] .calendar-detail { background: var(--raise2); color: #9AA4B6; }
+[data-theme="b"] .month-agenda > div { border-bottom-color: var(--line); }
+
+/* ── 10. 시정표 · 내 시간표 ─────────────────────────────────────────── */
+[data-theme="b"] .timetable th,
+[data-theme="b"] .timetable td { border-bottom-color: var(--line); color: #B8C0CE; }
+[data-theme="b"] .timetable th { background: var(--raise2); color: #8892A4; }
+[data-theme="b"] .timetable .lunch td { background: #2A2312; color: #FBBF24; }
+[data-theme="b"] .myclass-tt th,
+[data-theme="b"] .myclass-tt td { border-right-color: var(--line); }
+[data-theme="b"] .myclass-tt th:first-child,
+[data-theme="b"] .myclass-tt td:first-child { color: #8892A4; }
+[data-theme="b"] .myclass-tt .tt-time { color: #5B6474; }
+[data-theme="b"] .myclass-tt td.g { background: #14301F; color: #86EFAC; }
+[data-theme="b"] .myclass-tt td.o { background: #33240F; color: #FDBA74; }
+
+/* ── 11. 모달 · 토스트 ──────────────────────────────────────────────── */
+[data-theme="b"] .modal-backdrop { background: rgba(4, 6, 10, .68); }
+[data-theme="b"] .modal { background: var(--surface); border: 1px solid var(--line); }
+[data-theme="b"] .toast { background: var(--primary); color: var(--on-primary); font-weight: 700; }
+
+/* ── 12. 지금 이 시간 패널 ──────────────────────────────────────────── */
+[data-theme="b"] .now-slot,
+[data-theme="b"] .now-lines,
+[data-theme="b"] .now-meal { border-color: var(--line); }
+[data-theme="b"] .now-slot { background: var(--primary-soft); }
+[data-theme="b"] .now-slot[data-tone="free"],
+[data-theme="b"] .now-slot[data-tone="off"] { background: var(--raise2); }
+[data-theme="b"] .now-slot[data-tone="event"] { background: #2A2312; }
+[data-theme="b"] .now-slot[data-tone="guess"] { background: #26210F; }
+[data-theme="b"] .now-bar { background: #262E3C; }
+[data-theme="b"] .now-lines { background: var(--raise); }
+[data-theme="b"] .now-line + .now-line { color: #9AA4B6; }
+[data-theme="b"] .now-key { background: #1C2530; color: #8892A4; }
+[data-theme="b"] .now-meal { background: #1B1A14; }
+[data-theme="b"] .now-meal-head { color: #FBBF24; }
+[data-theme="b"] .now-meal-body { color: #C6CEDB; }
+[data-theme="b"] .now-meal-body li::before { color: #A98A4E; }
+[data-theme="b"] .now-meal-name { background: #33290F; color: #FBBF24; }
+[data-theme="b"] .now-meal-retry { background: var(--raise); color: #9AA4B6; border-color: var(--line); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   13. 오른쪽 아래 디자인 전환 버튼 (두 테마 공통 — 항상 적용)
+   ══════════════════════════════════════════════════════════════════════ */
+.theme-fab {
+  position: fixed; right: 18px; bottom: 18px; z-index: 90;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+}
+.theme-btn {
+  border: 1px solid var(--line); border-radius: 99px; padding: 10px 16px;
+  background: var(--surface); color: var(--ink);
+  font-size: 13px; font-weight: 800;
+  box-shadow: 0 6px 20px rgba(37, 51, 92, .16);
+}
+.theme-menu {
+  display: none; flex-direction: column; gap: 3px; min-width: 200px; padding: 6px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.theme-menu.open { display: flex; }
+.theme-menu button {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  border: 0; border-radius: 9px; padding: 9px 10px; background: transparent;
+  color: var(--ink); font-size: 13px; font-weight: 700; text-align: left;
+}
+.theme-menu button:hover { background: var(--primary-soft); }
+.theme-menu .swatch {
+  width: 15px; height: 15px; border-radius: 5px; flex: none;
+  border: 1px solid rgba(128, 128, 128, .35);
+}
+.theme-menu .sw-light { background: linear-gradient(135deg, #ffffff 50%, #3157d5 50%); }
+.theme-menu .sw-b { background: linear-gradient(135deg, #141922 50%, #A3E635 50%); }
+.theme-menu .tick { margin-left: auto; font-weight: 900; color: var(--primary); opacity: 0; }
+.theme-menu button.on .tick { opacity: 1; }
+.theme-note { margin: 2px 4px 4px; padding: 0 6px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+[data-theme="b"] .theme-btn { box-shadow: 0 6px 20px rgba(0, 0, 0, .55); }
+
+@media (max-width: 680px) {
+  .theme-fab { right: 12px; bottom: 12px; }
+  .theme-btn { padding: 9px 13px; font-size: 12px; }
+}
