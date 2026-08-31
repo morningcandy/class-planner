@@ -600,6 +600,53 @@
     { label: '7교시', start: '15:10', end: '16:00', kind: 'period', period: 7 },
   ];
 
+  /* 학교가 시정표를 따로 내려주는 날. 단축 수업·행사가 있으면 교시 시각이
+     통째로 달라지므로 그날 표를 그대로 적어 둔다. 날짜를 여기 넣으면
+     NOW 카드와 시정표 패널이 함께 그날 시각으로 바뀐다. */
+  const SPECIAL_BELLS = {
+    '2026-08-31': {
+      note: '환경미화 · 오후 수업 35분',
+      slots: [
+        { label: '아침조회', start: '08:00', end: '08:10', kind: 'homeroom' },
+        { label: '1교시', start: '08:20', end: '09:10', kind: 'period', period: 1 },
+        { label: '2교시', start: '09:20', end: '10:10', kind: 'period', period: 2 },
+        { label: '3교시', start: '10:20', end: '11:10', kind: 'period', period: 3 },
+        { label: '4교시', start: '11:20', end: '12:10', kind: 'period', period: 4 },
+        { label: '점심시간', start: '12:10', end: '13:10', kind: 'lunch' },
+        { label: '5교시', start: '13:10', end: '13:45', kind: 'period', period: 5 },
+        { label: '6교시', start: '13:55', end: '14:30', kind: 'period', period: 6 },
+        { label: '7교시', start: '14:40', end: '15:15', kind: 'period', period: 7 },
+        { label: '환경미화', start: '15:15', end: '16:00', kind: 'event' },
+      ],
+    },
+    '2026-09-03': {
+      note: '클래식 공연 · 1~4교시 40분',
+      slots: [
+        { label: '아침조회', start: '08:00', end: '08:10', kind: 'homeroom' },
+        { label: '클래식 공연', start: '08:20', end: '09:10', kind: 'event' },
+        { label: '1교시', start: '09:20', end: '10:00', kind: 'period', period: 1 },
+        { label: '2교시', start: '10:05', end: '10:45', kind: 'period', period: 2 },
+        { label: '3교시', start: '10:50', end: '11:30', kind: 'period', period: 3 },
+        { label: '4교시', start: '11:35', end: '12:15', kind: 'period', period: 4 },
+        { label: '점심시간', start: '12:15', end: '13:10', kind: 'lunch' },
+        { label: '5교시', start: '13:10', end: '14:00', kind: 'period', period: 5 },
+        { label: '6교시', start: '14:10', end: '15:00', kind: 'period', period: 6 },
+        { label: '7교시', start: '15:10', end: '16:00', kind: 'period', period: 7 },
+      ],
+    },
+  };
+
+  /* 그날 실제로 울리는 시정표. 특별 시정표가 없으면 평소 표를 쓴다. */
+  function bellFor(dateStr) {
+    const special = SPECIAL_BELLS[dateStr];
+    return special ? special.slots : BELL;
+  }
+
+  function bellNoteFor(dateStr) {
+    const special = SPECIAL_BELLS[dateStr];
+    return special ? special.note : '';
+  }
+
   // 교시 → [월, 화, 수, 목, 금]
   const MY_TIMETABLE = {
     1: ['35D', '28B', '24C', '24C', ''],
@@ -787,25 +834,28 @@
 
   function slotPlan(context, slot) {
     if (context.noClass) return { text: '수업 없는 날', tone: 'off', override: null };
-    if (context.offTimetable && slot.kind !== 'lunch') return { text: '시간표 별도', tone: 'off', override: null };
+    if (context.offTimetable && slot.kind !== 'lunch' && slot.kind !== 'event') return { text: '시간표 별도', tone: 'off', override: null };
     if (slot.kind === 'homeroom') return { text: '아침조회 (우리 반)', tone: 'event', override: null };
     if (slot.kind === 'lunch') return { text: '점심시간', tone: 'free', override: null };
+    /* 클래식 공연·환경미화처럼 시정표에 직접 박힌 행사 시간 */
+    if (slot.kind === 'event') return { text: slot.label, tone: 'event', override: null };
     return periodPlan(context, slot.period);
   }
 
-  function bellStateAt(nowMinutes) {
-    for (let index = 0; index < BELL.length; index += 1) {
-      const slot = BELL[index];
+  function bellStateAt(nowMinutes, bellTable) {
+    const table = bellTable || BELL;
+    for (let index = 0; index < table.length; index += 1) {
+      const slot = table[index];
       const start = toMinutes(slot.start);
       const end = toMinutes(slot.end);
       if (nowMinutes >= start && nowMinutes < end) {
-        return { phase: 'in', slot, index, next: BELL[index + 1] || null, remain: end - nowMinutes, progress: (nowMinutes - start) / (end - start) };
+        return { phase: 'in', slot, index, next: table[index + 1] || null, remain: end - nowMinutes, progress: (nowMinutes - start) / (end - start) };
       }
       if (nowMinutes < start) {
         return { phase: index === 0 ? 'before' : 'break', slot: null, index, next: slot, remain: start - nowMinutes, progress: 0 };
       }
     }
-    return { phase: 'after', slot: null, index: BELL.length, next: null, remain: 0, progress: 1 };
+    return { phase: 'after', slot: null, index: table.length, next: null, remain: 0, progress: 1 };
   }
 
   /* ── 오늘의 급식 (나이스 공개 API) ────────────────────────────────
@@ -946,8 +996,31 @@
   function dayLabel(context) {
     if (context.noClass) return `${context.noClassReason} · 수업 없음`;
     if (context.offTimetable) return `${context.offTimetable} · 정규 시간표 아님`;
-    if (context.swap) return `${WEEKDAY_NAMES[context.swap.weekday]}요일 시간표로 수업 (${context.swap.source} 반영)`;
-    return `${WEEKDAY_NAMES[context.weekday]}요일 시간표`;
+    const note = bellNoteFor(context.dateStr);
+    const suffix = note ? ` · ${note}` : '';
+    if (context.swap) return `${WEEKDAY_NAMES[context.swap.weekday]}요일 시간표로 수업 (${context.swap.source} 반영)${suffix}`;
+    return `${WEEKDAY_NAMES[context.weekday]}요일 시간표${suffix}`;
+  }
+
+  /* 사이드 패널 시정표를 그날 표로 다시 그린다. 지금 진행 중인 칸은 표시.
+     BELL을 고치면 이 표도 자동으로 따라오므로 index.html에 시각을 적지 않는다. */
+  function renderBellPanel(dateStr, bellTable, bell) {
+    const body = $('bellBody');
+    if (!body) return;
+    body.innerHTML = bellTable.map((slot) => {
+      const classes = [];
+      if (slot.kind === 'lunch') classes.push('lunch');
+      if (slot.kind === 'event') classes.push('special');
+      if (bell && bell.phase === 'in' && bell.slot === slot) classes.push('current');
+      const label = slot.kind === 'homeroom' ? '조회' : slot.label;
+      return `<tr${classes.length ? ` class="${classes.join(' ')}"` : ''}><td>${escapeHtml(label)}</td><td>${escapeHtml(slot.start)} ~ ${escapeHtml(slot.end)}</td></tr>`;
+    }).join('');
+    const note = $('bellNote');
+    if (note) {
+      const special = bellNoteFor(dateStr);
+      note.textContent = special ? `${dateLabel(dateStr)} · ${special}` : '2학기 기본';
+      note.dataset.special = special ? 'yes' : 'no';
+    }
   }
 
   function renderNow() {
@@ -956,7 +1029,9 @@
     const dateStr = today();
     const nowMinutes = nowDate.getHours() * 60 + nowDate.getMinutes() + nowDate.getSeconds() / 60;
     const context = dayContext(dateStr, nowDate);
-    const bell = bellStateAt(nowMinutes);
+    const bellTable = bellFor(dateStr);
+    const bell = bellStateAt(nowMinutes, bellTable);
+    renderBellPanel(dateStr, bellTable, bell);
 
     $('nowClock').textContent = [nowDate.getHours(), nowDate.getMinutes(), nowDate.getSeconds()]
       .map((value) => String(value).padStart(2, '0')).join(':');
@@ -999,7 +1074,7 @@
     $('nowSlot').dataset.tone = tone;
     $('nowBar').style.width = `${Math.round((bell.phase === 'in' ? bell.progress : 0) * 100)}%`;
 
-    const upcoming = bell.phase === 'in' ? bell.next : (bell.next ? BELL[BELL.indexOf(bell.next) + 1] : null);
+    const upcoming = bell.phase === 'in' ? bell.next : (bell.next ? bellTable[bellTable.indexOf(bell.next) + 1] : null);
     $('nextSubject').textContent = context.noClass || !upcoming
       ? '예정된 다음 시간이 없습니다.'
       : `${upcoming.label} (${upcoming.start}) · ${slotPlan(context, upcoming).text}`;
@@ -1008,7 +1083,7 @@
   }
 
   // 시간표 계산 로직은 브라우저 콘솔·테스트에서 단독으로 확인할 수 있게 열어 둔다.
-  window.ClassPlannerTimetable = { BELL, MY_TIMETABLE, parseTimetableHints, dayContext, bellStateAt, slotPlan, periodPlan };
+  window.ClassPlannerTimetable = { BELL, SPECIAL_BELLS, MY_TIMETABLE, bellFor, bellNoteFor, parseTimetableHints, dayContext, bellStateAt, slotPlan, periodPlan };
 
   function renderAll() {
     renderSummary();

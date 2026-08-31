@@ -266,6 +266,10 @@ textarea { resize: vertical; line-height: 1.65; }
 .timetable th { background: #f5f7fb; color: #59647b; }
 .timetable td:first-child { font-weight: 800; }
 .timetable .lunch td { background: #fff7ed; color: #9a5a18; }
+/* 그날만 있는 행사 칸(클래식 공연·환경미화)과 지금 진행 중인 칸 */
+.timetable .special td { background: #eef2ff; color: #3730a3; }
+.timetable .current td { box-shadow: inset 3px 0 0 #2f45d1; font-weight: 800; }
+#bellNote[data-special="yes"] { color: #c2410c; font-weight: 700; }
 .myclass-wrap { overflow-x: auto; }
 .myclass-tt { font-size: 11px; table-layout: fixed; }
 .myclass-tt th, .myclass-tt td { padding: 5px 2px; border-right: 1px solid #edf0f5; word-break: keep-all; }
