@@ -860,6 +860,15 @@
     return periodPlan(context, slot.period);
   }
 
+  /* "2교시 · 306호 감독 · 2교시 · 306호 감독"처럼 겹쳐 나오지 않게, 칸 이름과
+     그 칸의 설명이 같으면 한 번만 적는다. 감독 시정표처럼 label에 이미 설명이
+     들어 있는 event 칸에서 생긴다. */
+  function slotLine(context, slot, startTime) {
+    const when = startTime ? ` (${startTime})` : '';
+    const text = slotPlan(context, slot).text;
+    return text === slot.label ? `${slot.label}${when}` : `${slot.label}${when} · ${text}`;
+  }
+
   function bellStateAt(nowMinutes, bellTable) {
     const table = bellTable || BELL;
     for (let index = 0; index < table.length; index += 1) {
@@ -1076,7 +1085,7 @@
     } else if (bell.phase === 'break') {
       periodText = '쉬는 시간';
       remainText = `${bell.next.label}까지 ${minuteLabel(bell.remain)}`;
-      nowText = `다음은 ${bell.next.label} · ${slotPlan(context, bell.next).text}`;
+      nowText = `다음은 ${slotLine(context, bell.next)}`;
       tone = 'free';
     } else {
       const plan = slotPlan(context, bell.slot);
@@ -1095,7 +1104,7 @@
     const upcoming = bell.phase === 'in' ? bell.next : (bell.next ? bellTable[bellTable.indexOf(bell.next) + 1] : null);
     $('nextSubject').textContent = context.noClass || !upcoming
       ? '예정된 다음 시간이 없습니다.'
-      : `${upcoming.label} (${upcoming.start}) · ${slotPlan(context, upcoming).text}`;
+      : `${slotLine(context, upcoming, upcoming.start)}`;
 
     ensureMeal(dateStr);
   }
