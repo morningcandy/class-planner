@@ -401,3 +401,27 @@ textarea { resize: vertical; line-height: 1.65; }
   .now-period, .now-line, .now-meal-head { font-size: 17px; line-height: 24px; }
   .now-remain, .now-line + .now-line { font-size: 14px; line-height: 20px; }
 }
+
+/* 선생님 시간표 검색 · 공통 공강 */
+.teacher-panel { display: grid; gap: 10px; }
+.teacher-query { width: 100%; padding: 9px 11px; border: 1px solid #dfe3ec; border-radius: 10px; font-size: 12px; font-family: inherit; }
+.teacher-query:focus { outline: none; border-color: var(--primary); }
+.teacher-hint, .teacher-foot { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.teacher-miss { margin: 0 0 6px; color: #b5581f; font-size: 11px; font-weight: 700; }
+.teacher-status { display: block; padding: 8px 10px; border-radius: 10px; font-size: 12px; font-weight: 800; }
+.teacher-status.busy { background: #fdece0; color: #b5581f; }
+.teacher-status.free { background: #e6f4ea; color: #1f7a45; }
+.teacher-status.off { background: #f5f7fb; color: #59647b; }
+.teacher-common { margin: 8px 0 0; padding-left: 16px; color: #1f7a45; font-size: 12px; line-height: 1.7; }
+.teacher-common b { display: inline-block; min-width: 16px; }
+.teacher-tt-wrap { overflow-x: auto; margin-top: 8px; }
+.teacher-tt { font-size: 10px; table-layout: fixed; }
+.teacher-tt th, .teacher-tt td { padding: 4px 2px; border-right: 1px solid #edf0f5; word-break: keep-all; line-height: 1.25; }
+.teacher-tt th:last-child, .teacher-tt td:last-child { border-right: 0; }
+.teacher-tt th:first-child, .teacher-tt td:first-child { width: 20px; }
+.teacher-tt .tt-time { font-size: 9px; color: #8a93a6; font-weight: 600; white-space: nowrap; width: 40px; }
+.teacher-tt td.busy { background: #fdece0; color: #b5581f; }
+.teacher-tt td.busy b { font-weight: 800; }
+.teacher-tt td.free { color: #b7bfcd; font-weight: 600; }
+.teacher-tt td.all-free { background: #e6f4ea; color: #1f7a45; font-weight: 800; }
+.teacher-tt td.busy-some { color: #8a93a6; cursor: help; }

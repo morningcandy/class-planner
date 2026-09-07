@@ -229,3 +229,16 @@ html[data-theme="b"] { color-scheme: dark; }
   .theme-fab { right: 12px; bottom: 12px; }
   .theme-btn { padding: 9px 13px; font-size: 12px; }
 }
+
+[data-theme="b"] .teacher-query { background: var(--raise2); border-color: var(--line); color: var(--ink); }
+[data-theme="b"] .teacher-status.busy { background: #33240F; color: #FBBF24; }
+[data-theme="b"] .teacher-status.free { background: #16281B; color: var(--success); }
+[data-theme="b"] .teacher-status.off { background: var(--raise2); color: var(--muted); }
+[data-theme="b"] .teacher-common { color: var(--success); }
+[data-theme="b"] .teacher-miss { color: var(--danger); }
+[data-theme="b"] .teacher-tt th,
+[data-theme="b"] .teacher-tt td { border-right-color: var(--line); }
+[data-theme="b"] .teacher-tt td.busy { background: #33240F; color: #FBBF24; }
+[data-theme="b"] .teacher-tt td.free { color: #566072; }
+[data-theme="b"] .teacher-tt td.all-free { background: #16281B; color: var(--success); }
+[data-theme="b"] .teacher-tt td.busy-some { color: var(--muted); }

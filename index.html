@@ -144,6 +144,12 @@
             </tbody>
           </table>
         </section>
+        <section class="panel teacher-panel">
+          <div class="section-heading compact"><div><p class="eyebrow">TEACHER SEARCH</p><h2>선생님 시간표</h2></div><span class="muted" style="font-size:11px" id="teacherNote">2학기</span></div>
+          <input id="teacherQuery" class="teacher-query" type="search" list="teacherNames" autocomplete="off" placeholder="이름 검색 · 여러 명은 쉼표로 (예: 김현아, 송진규)">
+          <datalist id="teacherNames"></datalist>
+          <div class="teacher-result" id="teacherResult"></div>
+        </section>
       </aside>
     </div>
     <section class="composer-card claude-card">
@@ -302,6 +308,8 @@
   <script src="config.js"></script>
   <script src="attachment-utils.js?v=20260816-files1"></script>
   <script src="app.js?v=20260831-bell1"></script>
+  <script src="teacher-timetable.js?v=20260907-tt1"></script>
+  <script src="teacher-search.js?v=20260907-tt1"></script>
   <script src="theme-switch.js?v=20260830-themeb1"></script>
 </body>
 </html>
