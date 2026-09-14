@@ -144,6 +144,15 @@
             </tbody>
           </table>
         </section>
+        <section class="panel exam-panel hidden" id="examPanel">
+          <div class="section-heading compact"><div><p class="eyebrow">EXAM SCHEDULE</p><h2 id="examTitle">고사 시간표</h2></div><span class="muted" style="font-size:11px" id="examNote"></span></div>
+          <div class="exam-wrap">
+            <table class="exam-tt">
+              <thead><tr><th class="exam-date">날짜</th><th class="exam-time">시간</th><th>1학년</th><th class="mine">2학년</th><th>3학년</th></tr></thead>
+              <tbody id="examBody"></tbody>
+            </table>
+          </div>
+        </section>
         <section class="panel teacher-panel">
           <div class="section-heading compact"><div><p class="eyebrow">TEACHER SEARCH</p><h2>선생님 시간표</h2></div><span class="muted" style="font-size:11px" id="teacherNote">2학기</span></div>
           <input id="teacherQuery" class="teacher-query" type="search" list="teacherNames" autocomplete="off" placeholder="이름 검색 · 여러 명은 쉼표로 (예: 김현아, 송진규)">
@@ -304,12 +313,13 @@
     </div>
     <button type="button" class="theme-btn" id="themeBtn">🎨 디자인</button>
   </div>
-  <script src="../class-notice/data.js"></script>
+  <script src="../class-notice/data.js?v=20260914-exam1"></script>
   <script src="config.js"></script>
   <script src="attachment-utils.js?v=20260816-files1"></script>
   <script src="app.js?v=20260831-bell1"></script>
   <script src="teacher-timetable.js?v=20260907-tt1"></script>
   <script src="teacher-search.js?v=20260907-tt1"></script>
+  <script src="exam-schedule.js?v=20260914-exam1"></script>
   <script src="theme-switch.js?v=20260830-themeb1"></script>
 </body>
 </html>

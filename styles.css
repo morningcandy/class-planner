@@ -425,3 +425,17 @@ textarea { resize: vertical; line-height: 1.65; }
 .teacher-tt td.free { color: #b7bfcd; font-weight: 600; }
 .teacher-tt td.all-free { background: #e6f4ea; color: #1f7a45; font-weight: 800; }
 .teacher-tt td.busy-some { color: #8a93a6; cursor: help; }
+
+/* 고사 시간표 (시정표 아래) — 날짜 × 교시, 우리 반 학년 열 강조 */
+.exam-panel { display: grid; gap: 10px; }
+.exam-wrap { overflow-x: auto; }
+.exam-tt { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
+.exam-tt th, .exam-tt td { padding: 6px 3px; border-bottom: 1px solid #edf0f5; border-right: 1px solid #edf0f5; text-align: center; word-break: keep-all; line-height: 1.3; }
+.exam-tt th:last-child, .exam-tt td:last-child { border-right: 0; }
+.exam-tt th { background: #f5f7fb; color: #59647b; }
+.exam-tt .exam-date { width: 40px; font-weight: 800; color: #59647b; line-height: 1.25; }
+.exam-tt .exam-time { width: 40px; font-size: 9px; color: #8a93a6; font-weight: 600; white-space: nowrap; line-height: 1.15; }
+.exam-tt .mine { background: #eef2ff; color: #3730a3; font-weight: 800; }
+.exam-tt tr.day-start td { border-top: 2px solid #dfe4ee; }
+.exam-tt tr.today td { background: #fff7ed; }
+.exam-tt tr.today td.mine { background: #ffedd5; color: #9a3412; }

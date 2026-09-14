@@ -242,3 +242,14 @@ html[data-theme="b"] { color-scheme: dark; }
 [data-theme="b"] .teacher-tt td.free { color: #566072; }
 [data-theme="b"] .teacher-tt td.all-free { background: #16281B; color: var(--success); }
 [data-theme="b"] .teacher-tt td.busy-some { color: var(--muted); }
+
+/* 고사 시간표 */
+[data-theme="b"] .exam-tt th,
+[data-theme="b"] .exam-tt td { border-bottom-color: var(--line); border-right-color: var(--line); color: #B8C0CE; }
+[data-theme="b"] .exam-tt th { background: var(--raise2); color: #8892A4; }
+[data-theme="b"] .exam-tt .exam-date { color: #8892A4; }
+[data-theme="b"] .exam-tt .exam-time { color: #5B6474; }
+[data-theme="b"] .exam-tt .mine { background: var(--primary-soft); color: var(--primary); }
+[data-theme="b"] .exam-tt tr.day-start td { border-top-color: #2E3746; }
+[data-theme="b"] .exam-tt tr.today td { background: #2A2312; }
+[data-theme="b"] .exam-tt tr.today td.mine { background: #33240F; color: #FBBF24; }
