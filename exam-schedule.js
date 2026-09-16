@@ -44,7 +44,8 @@
     return `<tr class="${classes.join(' ')}">${dateCell}<td class="exam-time">${escapeHtml(slot.start)}<br>${escapeHtml(slot.end)}</td>${grades}</tr>`;
   }).join('')).join('');
 
-  if (title) title.textContent = `${exam.title} 시간표`;
+  // "2학기 중간고사"와 "시간표"를 각각 한 덩어리로 묶어, 줄이 넘치면 그 사이에서만 줄바꿈한다.
+  if (title) title.innerHTML = `<span class="exam-title-sub">${escapeHtml(exam.title)}</span> <span class="exam-title-sub">시간표</span>`;
   if (note) note.textContent = `${md(exam.start)}(${wd(exam.start)}) ~ ${md(exam.end)}(${wd(exam.end)})`;
   panel.classList.remove('hidden');
 })();

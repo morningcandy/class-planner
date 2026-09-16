@@ -180,6 +180,7 @@ html[data-theme="b"] { color-scheme: dark; }
 [data-theme="b"] .now-bar { background: #262E3C; }
 [data-theme="b"] .now-lines { background: var(--raise); }
 [data-theme="b"] .now-line + .now-line { color: #9AA4B6; }
+[data-theme="b"] .now-line + .now-line .now-detail { color: #9AA4B6; }
 [data-theme="b"] .now-key { background: #1C2530; color: #8892A4; }
 [data-theme="b"] .now-meal { background: #1B1A14; }
 [data-theme="b"] .now-meal-head { color: #FBBF24; }

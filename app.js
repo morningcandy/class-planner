@@ -863,10 +863,17 @@
   /* "2교시 · 306호 감독 · 2교시 · 306호 감독"처럼 겹쳐 나오지 않게, 칸 이름과
      그 칸의 설명이 같으면 한 번만 적는다. 감독 시정표처럼 label에 이미 설명이
      들어 있는 event 칸에서 생긴다. */
+  /* 교시(시각)와 수업 내용을 따로 돌려준다. 한 줄에 "1교시 · 24C 수업"으로 붙이면
+     좁은 칸에서 어중간하게 끊기므로 화면에서는 두 줄로 나눠 보여준다. */
   function slotLine(context, slot, startTime) {
     const when = startTime ? ` (${startTime})` : '';
     const text = slotPlan(context, slot).text;
-    return text === slot.label ? `${slot.label}${when}` : `${slot.label}${when} · ${text}`;
+    return { head: `${slot.label}${when}`, detail: text === slot.label ? '' : text };
+  }
+
+  function setNowLine(el, head, detail = '') {
+    el.innerHTML = `<span class="now-head">${escapeHtml(head)}</span>`
+      + (detail ? `<span class="now-detail">${escapeHtml(detail)}</span>` : '');
   }
 
   function bellStateAt(nowMinutes, bellTable) {
@@ -1068,6 +1075,7 @@
     let periodText = '—';
     let remainText = '';
     let nowText = '—';
+    let nowDetail = '';
     let tone = 'off';
 
     if (context.noClass) {
@@ -1085,7 +1093,9 @@
     } else if (bell.phase === 'break') {
       periodText = '쉬는 시간';
       remainText = `${bell.next.label}까지 ${minuteLabel(bell.remain)}`;
-      nowText = `다음은 ${slotLine(context, bell.next)}`;
+      const nextLine = slotLine(context, bell.next);
+      nowText = `다음은 ${nextLine.head}`;
+      nowDetail = nextLine.detail;
       tone = 'free';
     } else {
       const plan = slotPlan(context, bell.slot);
@@ -1097,14 +1107,17 @@
 
     $('nowPeriod').textContent = periodText;
     $('nowRemain').textContent = remainText;
-    $('nowSubject').textContent = nowText;
+    setNowLine($('nowSubject'), nowText, nowDetail);
     $('nowSlot').dataset.tone = tone;
     $('nowBar').style.width = `${Math.round((bell.phase === 'in' ? bell.progress : 0) * 100)}%`;
 
     const upcoming = bell.phase === 'in' ? bell.next : (bell.next ? bellTable[bellTable.indexOf(bell.next) + 1] : null);
-    $('nextSubject').textContent = context.noClass || !upcoming
-      ? '예정된 다음 시간이 없습니다.'
-      : `${slotLine(context, upcoming, upcoming.start)}`;
+    if (context.noClass || !upcoming) {
+      setNowLine($('nextSubject'), '예정된 다음 시간이 없습니다.');
+    } else {
+      const upcomingLine = slotLine(context, upcoming, upcoming.start);
+      setNowLine($('nextSubject'), upcomingLine.head, upcomingLine.detail);
+    }
 
     ensureMeal(dateStr);
   }
