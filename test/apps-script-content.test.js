@@ -53,3 +53,27 @@ test('keeps the personal-code sheet column in text format for leading zeroes', (
   const source = fs.readFileSync(path.join(__dirname, '..', 'apps-script.gs'), 'utf8');
   assert.match(source, /getRange\('D2:D'\)\.setNumberFormat\('@'\)/);
 });
+
+test('normalizes scheduled publish times to Korean local minutes', () => {
+  const context = appsScriptContext();
+  const run = (value) => vm.runInContext(`normalizeDateTime_(${JSON.stringify(value)})`, context);
+  assert.equal(run(''), '');
+  assert.equal(run('2026-09-18T08:00'), '2026-09-18 08:00');
+  assert.equal(run('2026-09-18 8:05'), '2026-09-18 08:05');
+  assert.equal(run('2026-09-18'), '2026-09-18 00:00');
+  assert.equal(run('2026. 9. 18 오후 1:30:00'), '2026-09-18 13:30');
+  assert.equal(run('2026. 9. 18 오전 12:10:00'), '2026-09-18 00:10');
+  assert.equal(run('내일 아침'), '9999-12-31 23:59');
+});
+
+test('hides a published notice until its scheduled start time', () => {
+  const context = appsScriptContext();
+  const live = (notice, now) => vm.runInContext(
+    `isNoticeLive_(${JSON.stringify(notice)}, ${JSON.stringify(now)})`, context);
+  const scheduled = { status: '게시됨', starts_at: '2026-09-18 08:00' };
+  assert.equal(live(scheduled, '2026-09-18 07:59'), false);
+  assert.equal(live(scheduled, '2026-09-18 08:00'), true);
+  assert.equal(live({ status: '게시됨', starts_at: '' }, '2026-09-17 12:00'), true);
+  assert.equal(live({ status: '검토대기', starts_at: '2026-09-01 08:00' }, '2026-09-17 12:00'), false);
+  assert.equal(live({ status: '게시됨', starts_at: '알 수 없음' }, '2026-09-17 12:00'), false);
+});

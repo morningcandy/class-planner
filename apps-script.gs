@@ -19,7 +19,7 @@ const APP = Object.freeze({
     students: ['student_id', 'number', 'name', 'personal_code', 'active', 'note'],
     inbox: ['input_id', 'received_at', 'command', 'raw_text', 'analysis_json', 'status', 'warning'],
     planner: ['item_id', 'input_id', 'category', 'item_type', 'title', 'date', 'due_date', 'note', 'priority', 'status', 'linked_notice_ids', 'created_at', 'updated_at'],
-    notices: ['notice_id', 'input_id', 'scope', 'target_student_ids', 'title', 'content', 'notice_date', 'due_date', 'urgent', 'notice_type', 'status', 'published_at', 'ends_at', 'created_at', 'updated_at', 'sort_order'],
+    notices: ['notice_id', 'input_id', 'scope', 'target_student_ids', 'title', 'content', 'notice_date', 'due_date', 'urgent', 'notice_type', 'status', 'published_at', 'ends_at', 'created_at', 'updated_at', 'sort_order', 'starts_at'],
     responses: ['responded_at', 'student_id', 'item_type', 'item_id', 'response'],
     audit: ['changed_at', 'actor', 'action', 'record_type', 'record_id', 'summary'],
   },
@@ -564,9 +564,10 @@ function getStudentFeed_(code) {
     return isStudentActive_(row) && normalizeStudentCode_(row.personal_code) === normalized;
   }) : [];
   const student = matches.length === 1 ? matches[0] : null;
+  const now = nowMinute_();
 
   const notices = readObjects_('notices').filter(function (notice) {
-    if (String(notice.status) !== '게시됨') return false;
+    if (!isNoticeLive_(notice, now)) return false;
     if (notice.scope === '학급전체') return true;
     if (!student) return false;
     return splitIds_(notice.target_student_ids).indexOf(studentId_(student)) >= 0;
@@ -612,7 +613,7 @@ function recordStudentResponse_(body) {
   const student = code && matches.length === 1 ? matches[0] : null;
   if (!student) throw new Error('학생 코드를 확인할 수 없습니다.');
   const notice = findObject_('notices', 'notice_id', body.itemId);
-  const allowed = notice && String(notice.status) === '게시됨' && (
+  const allowed = notice && isNoticeLive_(notice, nowMinute_()) && (
     notice.scope === '학급전체' || splitIds_(notice.target_student_ids).indexOf(studentId_(student)) >= 0
   );
   if (!allowed) throw new Error('응답할 수 있는 공지를 찾을 수 없습니다.');
@@ -781,6 +782,7 @@ function createNotice_(notice) {
     created_at: now,
     updated_at: now,
     sort_order: nextNoticeSortOrder_(1),
+    starts_at: normalizeDateTime_(notice.starts_at),
   };
   if (!row.title) throw new Error('공지 제목을 입력해주세요.');
   upsertObject_('notices', 'notice_id', row);
@@ -801,6 +803,8 @@ function updateNotice_(notice) {
     urgent: isTrue_(notice.urgent) ? 'TRUE' : 'FALSE',
     notice_type: notice.notice_type === '할일' ? '할일' : '공지',
     ends_at: normalizeDate_(notice.ends_at),
+    // 예약 시각을 보내지 않는 화면(개인 알림장 검토함)에서 수정해도 예약이 풀려 즉시 공개되지 않게 유지
+    starts_at: notice.starts_at === undefined ? current.starts_at : normalizeDateTime_(notice.starts_at),
     updated_at: isoNow_(),
   });
   if (!merged.title) throw new Error('공지 제목을 입력해주세요.');
@@ -928,6 +932,8 @@ function applyValidations_(ss) {
   }
   if (notices) {
     notices.getRange('K2:K').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.noticeStatuses, true).build());
+    // starts_at은 "2026-09-18 08:00" 텍스트로 둔다. 날짜 서식이면 표시값이 "2026. 9. 18 오전 8:00"로 바뀐다.
+    notices.getRange('Q2:Q').setNumberFormat('@');
   }
 }
 
@@ -1120,6 +1126,39 @@ function normalizeDate_(value) {
   if (!text) return '';
   const match = text.match(/^(20\d{2})-(\d{2})-(\d{2})$/);
   return match ? text : extractDate_(text);
+}
+
+/* 예약 게시 시각. 입력은 "2026-09-18 08:00", "2026-09-18T08:00", 날짜만("2026-09-18" → 00:00),
+   시트가 날짜로 바꿔버린 표시값("2026. 9. 18 오전 8:00:00")까지 받아 "yyyy-MM-dd HH:mm"로 맞춘다.
+   알아볼 수 없는 값은 즉시 공개되지 않도록 먼 미래로 막는다. */
+function normalizeDateTime_(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  let match = text.match(/^(20\d{2})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2}))?/);
+  if (match) return formatDateTimeParts_(match[1], match[2], match[3], match[4] || 0, match[5] || 0);
+  match = text.match(/^(20\d{2})\.\s*(\d{1,2})\.\s*(\d{1,2})\.?(?:\s*(오전|오후)?\s*(\d{1,2}):(\d{2}))?/);
+  if (match) {
+    let hour = Number(match[5] || 0);
+    if (match[4] === '오후' && hour < 12) hour += 12;
+    if (match[4] === '오전' && hour === 12) hour = 0;
+    return formatDateTimeParts_(match[1], match[2], match[3], hour, match[6] || 0);
+  }
+  return '9999-12-31 23:59';
+}
+
+function formatDateTimeParts_(year, month, day, hour, minute) {
+  return year + '-' + pad2_(month) + '-' + pad2_(day) + ' ' + pad2_(hour) + ':' + pad2_(minute);
+}
+
+function nowMinute_() {
+  return Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm');
+}
+
+/* 학생에게 보이는 공지: 게시됨 + 예약 시각이 없거나 이미 지남(한국 시간 분 단위). */
+function isNoticeLive_(notice, now) {
+  if (String(notice && notice.status) !== '게시됨') return false;
+  const startsAt = normalizeDateTime_(notice.starts_at);
+  return !startsAt || startsAt <= now;
 }
 
 function isTrue_(value) {
