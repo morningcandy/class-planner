@@ -349,7 +349,7 @@
           <span class="date-label">${escapeHtml(dateLabel(mainDate))}</span>
         </div>
         <div class="row-bottom">
-          <span class="muted" style="font-size:11px">학생 화면에는 ‘게시됨’ 상태만 표시됩니다.</span>
+          <span class="muted hint-sm">학생 화면에는 ‘게시됨’ 상태만 표시됩니다.</span>
           <span class="spacer"></span>
           <div class="row-actions">
             <span class="order-number" aria-label="현재 순서">${index + 1}번째</span>

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#3157d5">
   <title>효니효의 개인 알림장</title>
-  <link rel="stylesheet" href="styles.css?v=20260831-bell1">
-  <link rel="stylesheet" href="theme-b.css?v=20260830-themeb1">
+  <link rel="stylesheet" href="styles.css?v=20260917-font1">
+  <link rel="stylesheet" href="theme-b.css?v=20260917-font1">
   <script>
     /* 저장해 둔 디자인을 첫 페인트 전에 적용해 깜빡임을 막는다. */
     try { var t = localStorage.getItem("classPlanner.theme.v1"); if (t) document.documentElement.setAttribute("data-theme", t); } catch (e) {}
@@ -54,7 +54,7 @@
         <div>
           <p class="eyebrow">NOW</p>
           <h2 id="nowDateLabel">지금 이 시간</h2>
-          <span class="muted" style="font-size:11px" id="nowDaySource">시정표와 내 시간표를 불러오는 중…</span>
+          <span class="muted hint-sm" id="nowDaySource">시정표와 내 시간표를 불러오는 중…</span>
         </div>
         <div class="now-clock" id="nowClock">--:--:--</div>
       </div>
@@ -88,7 +88,7 @@
       <div class="main-column">
         <section class="panel">
           <div class="section-heading">
-            <div><p class="eyebrow">구글 시트에 자동 저장</p><h2>개인 알림장</h2><span class="muted" style="font-size:11px">관리자 로그인 후 각 항목을 수정하거나 삭제할 수 있습니다.</span></div>
+            <div><p class="eyebrow">구글 시트에 자동 저장</p><h2>개인 알림장</h2><span class="muted hint-sm">관리자 로그인 후 각 항목을 수정하거나 삭제할 수 있습니다.</span></div>
             <button class="button secondary" id="addItemBtn" type="button">＋ 직접 추가</button>
           </div>
           <div class="segmented category-tabs" id="categoryFilter">
@@ -104,7 +104,7 @@
       <aside class="side-column">
         <section class="panel sticky-panel">
           <div class="section-heading compact">
-            <div><p class="eyebrow">ACADEMIC CALENDAR</p><h2 id="calendarTitle">학사일정 달력</h2><span class="muted" style="font-size:10px">개인 알림장 내용은 달력에 자동 반영하지 않습니다.</span></div>
+            <div><p class="eyebrow">ACADEMIC CALENDAR</p><h2 id="calendarTitle">학사일정 달력</h2><span class="muted hint-xs">개인 알림장 내용은 달력에 자동 반영하지 않습니다.</span></div>
             <div class="calendar-nav">
               <button type="button" id="prevMonth" aria-label="이전 달">‹</button>
               <button type="button" id="todayMonth">오늘</button>
@@ -115,7 +115,7 @@
           <div class="calendar-detail" id="calendarDetail">이번 달 학사일정을 불러오는 중입니다.</div>
         </section>
         <section class="panel myclass-panel">
-          <div class="section-heading compact"><div><p class="eyebrow">MY TIMETABLE</p><h2>내 시간표</h2></div><span class="muted" style="font-size:11px">2학기 · 시정표 기준</span></div>
+          <div class="section-heading compact"><div><p class="eyebrow">MY TIMETABLE</p><h2>내 시간표</h2></div><span class="muted hint-sm">2학기 · 시정표 기준</span></div>
           <div class="myclass-wrap">
             <table class="timetable myclass-tt">
               <thead><tr><th>교시</th><th>시간</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead>
@@ -132,7 +132,7 @@
           </div>
         </section>
         <section class="panel timetable-panel">
-          <div class="section-heading compact"><div><p class="eyebrow">DAILY BELL</p><h2>시정표</h2></div><span class="muted" style="font-size:11px" id="bellNote">2학기 기본</span></div>
+          <div class="section-heading compact"><div><p class="eyebrow">DAILY BELL</p><h2>시정표</h2></div><span class="muted hint-sm" id="bellNote">2학기 기본</span></div>
           <table class="timetable">
             <thead><tr><th>교시</th><th>시간</th></tr></thead>
             <tbody id="bellBody">
@@ -145,7 +145,7 @@
           </table>
         </section>
         <section class="panel exam-panel hidden" id="examPanel">
-          <div class="section-heading compact"><div><p class="eyebrow">EXAM SCHEDULE</p><h2 id="examTitle">고사 시간표</h2></div><span class="muted" style="font-size:11px" id="examNote"></span></div>
+          <div class="section-heading compact"><div><p class="eyebrow">EXAM SCHEDULE</p><h2 id="examTitle">고사 시간표</h2></div><span class="muted hint-sm" id="examNote"></span></div>
           <div class="exam-wrap">
             <table class="exam-tt">
               <thead><tr><th class="exam-date">날짜</th><th class="exam-time">시간</th><th>1학년</th><th class="mine">2학년</th><th>3학년</th></tr></thead>
@@ -154,7 +154,7 @@
           </div>
         </section>
         <section class="panel teacher-panel">
-          <div class="section-heading compact"><div><p class="eyebrow">TEACHER SEARCH</p><h2>선생님 시간표</h2></div><span class="muted" style="font-size:11px" id="teacherNote">2학기</span></div>
+          <div class="section-heading compact"><div><p class="eyebrow">TEACHER SEARCH</p><h2>선생님 시간표</h2></div><span class="muted hint-sm" id="teacherNote">2학기</span></div>
           <input id="teacherQuery" class="teacher-query" type="search" list="teacherNames" autocomplete="off" placeholder="이름 검색 · 여러 명은 쉼표로 (예: 김현아, 송진규)">
           <datalist id="teacherNames"></datalist>
           <div class="teacher-result" id="teacherResult"></div>
@@ -220,7 +220,7 @@
 
       <div class="claude-draft hidden" id="claudeDraft">
         <div class="draft-heading">
-          <div><p class="eyebrow">반영 전 확인</p><h3>Claude가 항목별로 정리한 내용</h3><span class="muted" style="font-size:11px">각 블록은 개인 알림장에서 별도의 완료 체크 항목으로 저장됩니다.</span></div>
+          <div><p class="eyebrow">반영 전 확인</p><h3>Claude가 항목별로 정리한 내용</h3><span class="muted hint-sm">각 블록은 개인 알림장에서 별도의 완료 체크 항목으로 저장됩니다.</span></div>
           <span>아직 저장되지 않았습니다</span>
         </div>
         <textarea id="claudeApplyText" rows="12" aria-label="알림장에 반영할 정리 내용"></textarea>
@@ -252,7 +252,7 @@
 
     <section class="panel" id="reviewPanel">
       <div class="section-heading">
-        <div><p class="eyebrow">승인 후 학생에게 공개</p><h2>학급 알림장 검토함 <span class="count-pill" id="reviewBadge">0</span></h2><span class="muted" style="font-size:11px">위로·아래로 순서를 정한 뒤 ‘순서 저장’을 누르면 Google Sheets와 학급 알림장에 반영됩니다.</span><span class="notice-order-status" id="noticeOrderStatus" aria-live="polite">순서를 변경할 수 있습니다.</span></div>
+        <div><p class="eyebrow">승인 후 학생에게 공개</p><h2>학급 알림장 검토함 <span class="count-pill" id="reviewBadge">0</span></h2><span class="muted hint-sm">위로·아래로 순서를 정한 뒤 ‘순서 저장’을 누르면 Google Sheets와 학급 알림장에 반영됩니다.</span><span class="notice-order-status" id="noticeOrderStatus" aria-live="polite">순서를 변경할 수 있습니다.</span></div>
         <div class="review-controls">
           <div class="segmented" id="noticeFilter">
             <button type="button" class="active" data-status="검토대기">검토 대기</button>
@@ -316,7 +316,7 @@
   <script src="../class-notice/data.js?v=20260914-exam1"></script>
   <script src="config.js"></script>
   <script src="attachment-utils.js?v=20260816-files1"></script>
-  <script src="app.js?v=20260831-bell1"></script>
+  <script src="app.js?v=20260917-font1"></script>
   <script src="teacher-timetable.js?v=20260907-tt1"></script>
   <script src="teacher-search.js?v=20260907-tt1"></script>
   <script src="exam-schedule.js?v=20260914-exam1"></script>

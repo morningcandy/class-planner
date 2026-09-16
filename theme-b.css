@@ -253,3 +253,12 @@ html[data-theme="b"] { color-scheme: dark; }
 [data-theme="b"] .exam-tt tr.day-start td { border-top-color: #2E3746; }
 [data-theme="b"] .exam-tt tr.today td { background: #2A2312; }
 [data-theme="b"] .exam-tt tr.today td.mine { background: #33240F; color: #FBBF24; }
+
+
+/* 넓은 화면(PC·교실 TV)에서만 글씨 확대. 모바일(940px 이하)은 기존 크기 그대로.
+   같은 선택자를 파일 끝에 다시 적어 기본 규칙을 이긴다. 학급 알림장과 같은 방식. */
+@media (min-width: 941px) {
+  .theme-btn { font-size: 16px; }
+  .theme-menu button { font-size: 16px; }
+  .theme-note { font-size: 14px; }
+}

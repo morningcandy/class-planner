@@ -439,3 +439,85 @@ textarea { resize: vertical; line-height: 1.65; }
 .exam-tt tr.day-start td { border-top: 2px solid #dfe4ee; }
 .exam-tt tr.today td { background: #fff7ed; }
 .exam-tt tr.today td.mine { background: #ffedd5; color: #9a3412; }
+
+.hint-sm { font-size: 11px; }
+.hint-xs { font-size: 10px; }
+
+/* 넓은 화면(PC·교실 TV)에서만 글씨 확대. 모바일(940px 이하)은 기존 크기 그대로.
+   같은 선택자를 파일 끝에 다시 적어 기본 규칙을 이긴다. 학급 알림장과 같은 방식. */
+@media (min-width: 941px) {
+  .auth-card h1 { font-size: 31px; }
+  .auth-copy { font-size: 18px; }
+  .auth-card label, .modal label { font-size: 16px; }
+  .form-message { font-size: 16px; }
+  .brand h1 { font-size: clamp(24px, 3vw, 34px); }
+  .brand .muted { font-size: 15px; }
+  .eyebrow { font-size: 13px; }
+  .connection-banner, .legacy-banner, .result-message { font-size: 16px; }
+  .section-heading h2 { font-size: 22px; }
+  .ai-state { font-size: 14px; }
+  .command-chip { font-size: 15px; }
+  .button.small { font-size: 14px; }
+  .field-pair label { font-size: 15px; }
+  .settings-footer p { font-size: 14px; }
+  .message-avatar { font-size: 15px; }
+  .claude-message strong { font-size: 14px; }
+  .claude-message p { font-size: 16px; }
+  .attachment-button { font-size: 14px; }
+  .attachment-file { font-size: 14px; }
+  .draft-heading h3 { font-size: 19px; }
+  .draft-heading > span { font-size: 13px; }
+  .claude-body > summary { font-size: 15px; }
+  .direct-entry summary { font-size: 14px; }
+  .summary-card span { font-size: 15px; }
+  .summary-card strong { font-size: 38px; }
+  .empty-state { font-size: 16px; }
+  .segmented button { font-size: 14px; }
+  .count-pill { font-size: 15px; }
+  .row-title { font-size: 18px; }
+  .row-note { font-size: 15px; }
+  .tag { font-size: 13px; }
+  .date-label { font-size: 14px; }
+  .row-actions button { font-size: 14px; }
+  .order-number { font-size: 13px; }
+  .notice-order-status { font-size: 13px; }
+  .planner-row.compact .row-title { font-size: 16px; }
+  .planner-row.compact .row-actions button { font-size: 13px; }
+  .planner-row.compact .date-label { font-size: 13px; }
+  .past-done > summary { font-size: 15px; }
+  .past-done > summary::before { font-size: 14px; }
+  .calendar-nav button { font-size: 15px; }
+  .cal-dow { font-size: 13px; }
+  .cal-cell { font-size: 14px; }
+  .cal-entry { font-size: 11px; }
+  .cal-more { font-size: 11px; }
+  .calendar-detail { font-size: 15px; }
+  .month-agenda time { font-size: 13px; }
+  .timetable { font-size: 15px; }
+  .myclass-tt { font-size: 14px; }
+  .myclass-tt .tt-time { font-size: 12px; }
+  .icon-button { font-size: 31px; }
+  .field-help { font-size: 13px; }
+  .toast { font-size: 16px; }
+  .now-clock { font-size: 38px; }
+  .now-period { font-size: 25px; }
+  .now-remain { font-size: 19px; }
+  .now-line { font-size: 25px; }
+  .now-line + .now-line { font-size: 19px; }
+  .now-key { font-size: 14px; }
+  .now-meal-head { font-size: 25px; }
+  .now-meal-body { font-size: 19px; }
+  .now-meal-name { font-size: 14px; }
+  .now-meal-retry { font-size: 14px; }
+  .teacher-query { font-size: 15px; }
+  .teacher-hint, .teacher-foot { font-size: 14px; }
+  .teacher-miss { font-size: 14px; }
+  .teacher-status { font-size: 15px; }
+  .teacher-common { font-size: 15px; }
+  .teacher-tt { font-size: 13px; }
+  .teacher-tt .tt-time { font-size: 12px; }
+  .exam-tt { font-size: 14px; }
+  .exam-tt .exam-time { font-size: 12px; }
+  .hint-sm { font-size: 14px; }
+  .hint-xs { font-size: 13px; }
+}
