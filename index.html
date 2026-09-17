@@ -153,6 +153,15 @@
             </table>
           </div>
         </section>
+        <section class="panel exam-panel train-panel hidden" id="trainPanel">
+          <div class="section-heading compact exam-heading"><div><p class="eyebrow">TRAINING</p><h2><span class="exam-title-sub">중간고사 기간 중</span> <span class="exam-title-sub">연수 계획</span></h2></div><span class="muted hint-sm" id="trainNote"></span></div>
+          <div class="exam-wrap">
+            <table class="exam-tt train-tt">
+              <thead><tr><th class="exam-date">날짜</th><th>주제</th><th class="exam-time">시간</th><th>주체</th><th>비고</th></tr></thead>
+              <tbody id="trainBody"></tbody>
+            </table>
+          </div>
+        </section>
         <section class="panel teacher-panel">
           <div class="section-heading compact"><div><p class="eyebrow">TEACHER SEARCH</p><h2>선생님 시간표</h2></div><span class="muted hint-sm" id="teacherNote">2학기</span></div>
           <input id="teacherQuery" class="teacher-query" type="search" list="teacherNames" autocomplete="off" placeholder="이름 검색 · 여러 명은 쉼표로 (예: 김현아, 송진규)">
@@ -320,6 +329,7 @@
   <script src="teacher-timetable.js?v=20260907-tt1"></script>
   <script src="teacher-search.js?v=20260907-tt1"></script>
   <script src="exam-schedule.js?v=20260917-exam2"></script>
+  <script src="training-schedule.js?v=20260918-train1"></script>
   <script src="theme-switch.js?v=20260830-themeb1"></script>
 </body>
 </html>

@@ -254,6 +254,10 @@ html[data-theme="b"] { color-scheme: dark; }
 [data-theme="b"] .exam-tt tr.day-start td { border-top-color: #2E3746; }
 [data-theme="b"] .exam-tt tr.today td { background: #2A2312; }
 [data-theme="b"] .exam-tt tr.today td.mine { background: #33240F; color: #FBBF24; }
+[data-theme="b"] .train-tt .train-topic { color: #D4DAE4; }
+[data-theme="b"] .train-tt tr.mark td { background: #2A2312; }
+[data-theme="b"] .train-tt tr.mark td.train-topic { color: #FBBF24; }
+[data-theme="b"] .train-tt tr.today td { background: #2A2312; }
 
 
 /* 넓은 화면(PC·교실 TV)에서만 글씨 확대. 모바일(940px 이하)은 기존 크기 그대로.
