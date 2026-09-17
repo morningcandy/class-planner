@@ -56,7 +56,7 @@
     return `<tr class="${classes.join(' ')}">${dateCell}`
       + `<td class="train-topic">${escapeHtml(row.topic)}</td>`
       + `<td class="exam-time">${escapeHtml(row.time)}</td>`
-      + `<td>${escapeHtml(row.host)}</td>`
+      + `<td class="train-host">${escapeHtml(row.host)}</td>`
       + `<td>${escapeHtml(row.place)}</td></tr>`;
   }).join('');
 

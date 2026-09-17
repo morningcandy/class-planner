@@ -452,8 +452,10 @@ textarea { resize: vertical; line-height: 1.65; }
 .exam-tt tr.day-start td { border-top: 2px solid #dfe4ee; }
 .exam-tt tr.today td { background: #fff7ed; }
 .exam-tt tr.today td.mine { background: #ffedd5; color: #9a3412; }
-.train-tt .exam-time { width: 58px; }
-.train-tt .train-topic { text-align: left; padding-left: 6px; font-weight: 700; color: #3b4459; }
+.train-tt .exam-time { width: 54px; white-space: normal; letter-spacing: -0.2px; }
+.train-tt .train-topic { width: 104px; text-align: left; padding-left: 6px; font-weight: 700; color: #3b4459; }
+.train-tt th.train-topic { text-align: center; padding-left: 3px; }
+.train-tt .train-host { width: 52px; }
 .train-tt tr.mark td { background: #fffbeb; }
 .train-tt tr.mark td.train-topic { color: #92610a; }
 .train-tt tr.today td { background: #fff7ed; }
