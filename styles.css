@@ -258,9 +258,18 @@ textarea { resize: vertical; line-height: 1.65; }
 .cal-cell.today .cal-entry { background: rgba(255,255,255,.2); color: #fff; }
 .cal-more { font-size: 8px; color: currentColor; opacity: .8; }
 .calendar-detail { min-height: 74px; max-height: 270px; overflow: auto; margin-top: 12px; padding: 12px; border-radius: 12px; background: #f7f8fc; color: #59647b; font-size: 12px; line-height: 1.6; }
+.month-agenda-box > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: #59647b; }
+.month-agenda-box > summary::-webkit-details-marker { display: none; }
+.month-agenda-box > summary::before { content: '▸'; color: #98a2b8; font-size: 11px; }
+.month-agenda-box[open] > summary::before { content: '▾'; }
+.month-agenda-box .agenda-count { color: var(--muted); font-size: 11px; font-weight: 700; }
 .month-agenda { display: grid; gap: 7px; margin-top: 8px; }
 .month-agenda > div { display: grid; grid-template-columns: 86px auto minmax(0, 1fr); align-items: start; gap: 6px; padding-bottom: 6px; border-bottom: 1px solid #e7eaf1; }
 .month-agenda time { color: var(--muted); font-size: 10px; }
+/* 끝난 학사일정은 가운데 줄을 그어 구분한다. */
+.month-agenda > div.done { opacity: .55; }
+.month-agenda > div.done time, .month-agenda > div.done > span:last-child { text-decoration: line-through; }
+.cal-cell.past .cal-entry { text-decoration: line-through; opacity: .7; }
 .timetable { width: 100%; border-collapse: collapse; font-size: 12px; }
 .timetable th, .timetable td { padding: 8px 9px; border-bottom: 1px solid #edf0f5; text-align: center; }
 .timetable th { background: #f5f7fb; color: #59647b; }

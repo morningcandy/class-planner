@@ -15,6 +15,7 @@
     students: [],
     category: '전체',
     pastDoneOpen: false,
+    monthAgendaOpen: false,
     noticeStatus: '검토대기',
     calendarDate: new Date(),
     selectedDate: '',
@@ -512,8 +513,8 @@
     const special = rangeFor(date, 'special');
     const vacation = rangeFor(date, 'vacation');
     return schoolEntriesOn(date).concat(
-      special ? [{ type: '학교', title: special.title }] : [],
-      vacation ? [{ type: '학교', title: vacation.title }] : [],
+      special ? [{ type: '학교', title: special.title, end: special.end }] : [],
+      vacation ? [{ type: '학교', title: vacation.title, end: vacation.end }] : [],
     );
   }
 
@@ -541,6 +542,7 @@
       const vacation = rangeFor(date, 'vacation');
       const entries = calendarEntriesOn(date);
       if (date === today()) classes.push('today');
+      if (date < today()) classes.push('past');
       if (date === state.selectedDate) classes.push('selected');
       if (schoolEntries.length) classes.push('school');
       if (special?.type === 'exam') classes.push('exam');
@@ -580,8 +582,13 @@
         rows.push({ date, ...entry });
       });
     }
+    const now = today();
     $('calendarDetail').innerHTML = rows.length
-      ? `<strong>이번 달 학사일정</strong><div class="month-agenda">${rows.map((entry) => `<div><time>${escapeHtml(dateLabel(entry.date))}</time><span class="tag ${calendarEntryClass(entry.type)}">${escapeHtml(entry.type)}</span><span>${escapeHtml(entry.title)}</span></div>`).join('')}</div>`
+      ? `<details class="month-agenda-box"${state.monthAgendaOpen ? ' open' : ''} id="monthAgenda"><summary>이번 달 학사일정 <span class="agenda-count">${rows.length}건</span></summary><div class="month-agenda">${rows.map((entry) => {
+        // 기간 일정은 마지막 날이 지나야 끝난 것으로 본다.
+        const done = (entry.end || entry.date) < now;
+        return `<div class="${done ? 'done' : ''}"><time>${escapeHtml(dateLabel(entry.date))}</time><span class="tag ${calendarEntryClass(entry.type)}">${escapeHtml(entry.type)}</span><span>${escapeHtml(entry.title)}</span></div>`;
+      }).join('')}</div></details>`
       : '<strong>이번 달 학사일정</strong><br>등록된 학사일정이 없습니다.';
   }
 
@@ -1495,6 +1502,10 @@
     state.selectedDate = button.dataset.calendarDate;
     renderCalendar();
   });
+  // 다시 그려도 '이번 달 학사일정'을 열어 둔 상태가 유지되도록 기억한다.
+  $('calendarDetail').addEventListener('toggle', (event) => {
+    if (event.target.id === 'monthAgenda') state.monthAgendaOpen = event.target.open;
+  }, true);
   $('prevMonth').addEventListener('click', () => { state.calendarDate.setMonth(state.calendarDate.getMonth() - 1); state.selectedDate = ''; renderCalendar(); });
   $('nextMonth').addEventListener('click', () => { state.calendarDate.setMonth(state.calendarDate.getMonth() + 1); state.selectedDate = ''; renderCalendar(); });
   $('todayMonth').addEventListener('click', () => { state.calendarDate = new Date(); state.selectedDate = today(); renderCalendar(); });

@@ -149,6 +149,8 @@ html[data-theme="b"] { color-scheme: dark; }
 [data-theme="b"] .cal-cell.today .cal-entry { background: rgba(16, 19, 23, .18); color: var(--on-primary); }
 [data-theme="b"] .calendar-detail { background: var(--raise2); color: #9AA4B6; }
 [data-theme="b"] .month-agenda > div { border-bottom-color: var(--line); }
+[data-theme="b"] .month-agenda-box > summary { color: #9AA4B6; }
+[data-theme="b"] .month-agenda-box > summary::before { color: #5B6474; }
 
 /* ── 10. 시정표 · 내 시간표 ─────────────────────────────────────────── */
 [data-theme="b"] .timetable th,
