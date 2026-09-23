@@ -51,7 +51,11 @@
         esc(number) + '</button>';
     }).join('');
 
-    const today = state.calls.slice().sort(function (a, b) {
+    /* 취소한 호출은 시트에 기록만 남고 화면에서는 사라진다. 거르지 않으면
+       다음 새로고침 때 "호출 중"으로 되살아나 취소가 안 먹힌 것처럼 보인다. */
+    const today = state.calls.filter(function (call) {
+      return call.status !== '취소';
+    }).sort(function (a, b) {
       return String(b.createdAt).localeCompare(String(a.createdAt));
     });
     todayBox.innerHTML = today.length ? today.map(function (call) {
@@ -90,7 +94,9 @@
     state.busy = true;
     try {
       await api('cancelCall', { callId: callId });
-      state.calls = state.calls.filter(function (item) { return String(item.id) !== String(callId); });
+      state.calls = state.calls.map(function (item) {
+        return String(item.id) === String(callId) ? Object.assign({}, item, { status: '취소' }) : item;
+      });
       hint.textContent = '호출을 취소했습니다.';
       render();
     } catch (error) {
