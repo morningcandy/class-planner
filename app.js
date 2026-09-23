@@ -233,6 +233,14 @@
       });
     }
     $('updatedAt').textContent = `마지막 동기화 ${new Date(data.updatedAt || Date.now()).toLocaleString('ko-KR')}`;
+    /* 호출 패널(call-panel.js)은 이 이벤트로만 명단과 오늘 호출을 받는다. */
+    document.dispatchEvent(new CustomEvent('planner:data', {
+      detail: {
+        students: state.students,
+        calls: Array.isArray(data.calls) ? data.calls : [],
+        boardReady: !!data.boardReady,
+      },
+    }));
     clearConnectionError();
     renderAll();
     setNoticeOrderStatus(draftOrder ? '변경된 순서가 아직 저장되지 않았습니다.' : '순서를 변경할 수 있습니다.', draftOrder ? 'pending' : '');

@@ -552,3 +552,16 @@ textarea { resize: vertical; line-height: 1.65; }
   .hint-sm { font-size: 14px; }
   .hint-xs { font-size: 13px; }
 }
+
+/* 학생 호출 패널 */
+.call-panel { display: grid; gap: 14px; }
+.call-reason { display: grid; gap: 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.call-reason input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; color: var(--ink); }
+.call-numbers { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; }
+.call-num { padding: 12px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font-size: 17px; font-weight: 800; cursor: pointer; }
+.call-num:hover { border-color: var(--primary); background: var(--primary-soft); }
+.call-num.calling { border-color: var(--warning); background: #fff4e6; color: var(--warning); }
+.call-today { display: flex; flex-wrap: wrap; gap: 8px; }
+.call-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: #fff4e6; color: var(--warning); font-size: 13px; font-weight: 700; }
+.call-chip.done { background: #e9f6f0; color: var(--success); }
+.call-cancel { padding: 2px 8px; border: 0; border-radius: 999px; background: rgba(0,0,0,.06); color: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }

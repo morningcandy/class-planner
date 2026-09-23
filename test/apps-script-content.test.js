@@ -77,3 +77,28 @@ test('hides a published notice until its scheduled start time', () => {
   assert.equal(live({ status: '검토대기', starts_at: '2026-09-01 08:00' }, '2026-09-17 12:00'), false);
   assert.equal(live({ status: '게시됨', starts_at: '알 수 없음' }, '2026-09-17 12:00'), false);
 });
+
+test('keeps a call on the classroom screen only on the day it was made', () => {
+  const context = appsScriptContext();
+  const active = (call, today) => vm.runInContext(
+    `isCallActive_(${JSON.stringify(call)}, ${JSON.stringify(today)})`, context);
+  const call = { status: '호출중', created_at: '2026-09-23T11:20:00+09:00' };
+  assert.equal(active(call, '2026-09-23'), true);
+  assert.equal(active(call, '2026-09-24'), false);
+  assert.equal(active({ status: '전달완료', created_at: '2026-09-23T11:20:00+09:00' }, '2026-09-23'), false);
+  assert.equal(active({ status: '취소', created_at: '2026-09-23T11:20:00+09:00' }, '2026-09-23'), false);
+  assert.equal(active({ status: '호출중', created_at: '' }, '2026-09-23'), false);
+});
+
+test('exposes only display fields of a call, never the student code', () => {
+  const context = appsScriptContext();
+  const shaped = vm.runInContext(`publicCall_(${JSON.stringify({
+    call_id: 'C1', student_id: 'S002', number: '2', caller: '담임T',
+    reason: '결석신고서 제출', status: '호출중', created_at: '2026-09-23T11:20:00+09:00',
+    acked_at: '', acked_by: '', personal_code: '021234',
+  })})`, context);
+  assert.deepEqual(Object.keys(shaped).sort(),
+    ['ackedAt', 'caller', 'createdAt', 'id', 'number', 'reason', 'status'].sort());
+  assert.equal(shaped.number, 2);
+  assert.equal(JSON.stringify(shaped).includes('021234'), false);
+});

@@ -77,6 +77,21 @@
 
     </section>
 
+    <section class="panel call-panel" id="callPanel" aria-label="학생 호출">
+      <div class="section-heading compact">
+        <div>
+          <p class="eyebrow">CALL</p>
+          <h2>학생 호출</h2>
+          <span class="muted hint-sm" id="callHint">번호를 누르면 교실 화면에 바로 뜹니다.</span>
+        </div>
+      </div>
+      <label class="call-reason">사유 (선택)
+        <input id="callReason" maxlength="60" placeholder="예: 결석신고서 제출 — 비우면 호출만 표시됩니다">
+      </label>
+      <div class="call-numbers" id="callNumbers"></div>
+      <div class="call-today" id="callToday"></div>
+    </section>
+
     <section class="summary-grid" aria-label="오늘 요약">
       <article class="summary-card red"><span>오늘·지연 업무</span><strong id="dueCount">0</strong></article>
       <article class="summary-card orange"><span>7일 안의 일정</span><strong id="weekCount">0</strong></article>
@@ -326,6 +341,7 @@
   <script src="config.js"></script>
   <script src="attachment-utils.js?v=20260816-files1"></script>
   <script src="app.js?v=20260920-cal1"></script>
+  <script src="call-panel.js?v=20260923-call1"></script>
   <script src="teacher-timetable.js?v=20260907-tt1"></script>
   <script src="teacher-search.js?v=20260907-tt1"></script>
   <script src="exam-schedule.js?v=20260917-exam2"></script>

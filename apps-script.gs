@@ -14,6 +14,7 @@ const APP = Object.freeze({
     notices: '앱_공지사항',
     responses: '앱_학생응답',
     audit: '앱_변경기록',
+    calls: '앱_호출',
   },
   headers: {
     students: ['student_id', 'number', 'name', 'personal_code', 'active', 'note'],
@@ -22,10 +23,12 @@ const APP = Object.freeze({
     notices: ['notice_id', 'input_id', 'scope', 'target_student_ids', 'title', 'content', 'notice_date', 'due_date', 'urgent', 'notice_type', 'status', 'published_at', 'ends_at', 'created_at', 'updated_at', 'sort_order', 'starts_at'],
     responses: ['responded_at', 'student_id', 'item_type', 'item_id', 'response'],
     audit: ['changed_at', 'actor', 'action', 'record_type', 'record_id', 'summary'],
+    calls: ['call_id', 'student_id', 'number', 'caller', 'reason', 'status', 'created_at', 'acked_at', 'acked_by'],
   },
   categories: ['학급', '교과', '개인'],
   noticeStatuses: ['검토대기', '보류', '게시됨', '종료됨'],
   plannerStatuses: ['진행', '완료'],
+  callStatuses: ['호출중', '전달완료', '취소'],
 });
 
 function onOpen() {
@@ -35,6 +38,7 @@ function onOpen() {
     .addItem('2. 기존 명단 가져오기', 'importLegacyStudentsFromMenu')
     .addItem('3. 관리자 토큰 설정', 'setAdminToken')
     .addItem('4. OpenAI API 키 설정(선택)', 'setOpenAIKey')
+    .addItem('5. 교실 화면 코드 설정', 'setBoardKey')
     .addItem('연결 상태 확인', 'showSetupStatus')
     .addToUi();
 }
@@ -104,6 +108,32 @@ function setOpenAIKey() {
   ui.alert(key ? 'API 키를 Script Properties에 저장했습니다.' : '기존 API 키를 삭제했습니다.');
 }
 
+/* 교실 컴퓨터에 띄우는 호출 화면 전용 코드. 학급 알림장은 공개 주소라
+   이 코드가 맞는 요청에만 호출 목록을 돌려준다. */
+function setBoardKey() {
+  const ui = SpreadsheetApp.getUi();
+  const result = ui.prompt(
+    '교실 화면 코드 설정',
+    '교실 컴퓨터에서 호출 화면을 열 때 한 번만 입력할 코드입니다. 6자 이상으로 정하세요.\n' +
+    '비워서 확인하면 호출 화면을 잠급니다.',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (result.getSelectedButton() !== ui.Button.OK) return;
+  const key = result.getResponseText().trim();
+  const props = PropertiesService.getScriptProperties();
+  if (!key) {
+    props.deleteProperty('BOARD_KEY_HASH');
+    ui.alert('교실 화면 코드를 삭제했습니다. 호출 화면이 열리지 않습니다.');
+    return;
+  }
+  if (key.length < 6) {
+    ui.alert('코드가 너무 짧습니다. 6자 이상으로 설정해주세요.');
+    return;
+  }
+  props.setProperty('BOARD_KEY_HASH', sha256_(key));
+  ui.alert('교실 화면 코드를 저장했습니다. 교실 컴퓨터에서 한 번 입력하면 그 컴퓨터에 저장됩니다.');
+}
+
 function showSetupStatus() {
   const props = PropertiesService.getScriptProperties();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -113,6 +143,7 @@ function showSetupStatus() {
   SpreadsheetApp.getUi().alert(
     '시트: ' + (missing.length ? '누락 - ' + missing.join(', ') : '정상') + '\n' +
     '관리자 토큰: ' + (props.getProperty('ADMIN_TOKEN_HASH') ? '설정됨' : '미설정') + '\n' +
+    '교실 화면 코드: ' + (props.getProperty('BOARD_KEY_HASH') ? '설정됨' : '미설정 - 호출 화면 잠김') + '\n' +
     'AI 정리: ' + (props.getProperty('OPENAI_API_KEY') ? '사용 가능' : '미설정 - 기본 정리 사용')
   );
 }
@@ -122,6 +153,9 @@ function doGet(e) {
     const action = String((e && e.parameter && e.parameter.action) || 'student');
     if (action === 'health') {
       return json_({ ok: true, version: 3, service: 'class-planner' });
+    }
+    if (action === 'board') {
+      return json_(getBoardFeed_(String((e && e.parameter && e.parameter.board) || '')));
     }
     return json_(getStudentFeed_(String((e && e.parameter && e.parameter.code) || '')));
   } catch (error) {
@@ -136,6 +170,12 @@ function doPost(e) {
 
     if (action === 'recordResponse') {
       return json_(recordStudentResponse_(body));
+    }
+
+    /* 교실 화면의 1인 1역 담당이 누르는 버튼. 관리자 토큰 없이 되지만
+       교실 화면 코드가 필요하고, 할 수 있는 일은 전달 완료 표시뿐이다. */
+    if (action === 'ackCall') {
+      return json_(ackCall_(body));
     }
 
     requireAdmin_(body.token);
@@ -154,6 +194,8 @@ function doPost(e) {
       case 'updateNotice': return json_(updateNotice_(body.notice || {}));
       case 'setNoticeStatus': return json_(setNoticeStatus_(body.noticeId, body.status));
       case 'reorderNotices': return json_(reorderNotices_(body.noticeIds || []));
+      case 'createCall': return json_(createCall_(body.call || {}));
+      case 'cancelCall': return json_(cancelCall_(body.callId));
       default: throw new Error('지원하지 않는 요청입니다.');
     }
   } catch (error) {
@@ -177,8 +219,12 @@ function getAdminData_() {
         note: student.note || '',
       };
     }),
+    calls: readObjects_('calls').filter(function (call) {
+      return isCallToday_(call, today_());
+    }).map(publicCall_),
     updatedAt: isoNow_(),
     aiEnabled: !!PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY'),
+    boardReady: !!PropertiesService.getScriptProperties().getProperty('BOARD_KEY_HASH'),
   };
   return result;
 }
@@ -596,6 +642,7 @@ function getStudentFeed_(code) {
     }
   });
 
+  /* 호출은 교실 화면(board) 전용이다. 학생 개인 기기로는 내려보내지 않는다. */
   return {
     ok: true,
     version: 3,
@@ -625,6 +672,116 @@ function recordStudentResponse_(body) {
     response: String(body.response || ''),
   }]);
   return { ok: true };
+}
+
+/* ── 학생 호출 ─────────────────────────────────────────────
+   교무실에서 학생을 부를 때 쓴다. 교실 컴퓨터에 띄워둔 호출 화면이
+   주기적으로 getBoardFeed_를 불러 새 호출을 띄운다. */
+
+/* 오늘 만들어진 호출만 화면에 남긴다. 어제 잊고 지나간 호출이
+   다음 날 아침까지 떠 있으면 아무도 믿지 않게 된다. */
+function isCallToday_(call, today) {
+  return callDay_(call) === String(today || '');
+}
+
+function callDay_(call) {
+  return String((call && call.created_at) || '').slice(0, 10);
+}
+
+function isCallActive_(call, today) {
+  return String(call && call.status) === '호출중' && isCallToday_(call, today);
+}
+
+function publicCall_(call) {
+  return {
+    id: String(call.call_id),
+    number: Number(call.number) || 0,
+    caller: String(call.caller || '담임T'),
+    reason: String(call.reason || ''),
+    status: String(call.status || '호출중'),
+    createdAt: String(call.created_at || ''),
+    ackedAt: String(call.acked_at || ''),
+  };
+}
+
+function getBoardFeed_(key) {
+  requireBoard_(key);
+  /* 20초마다 부르는 화면이라 시트 점검·생성은 하지 않는다.
+     아직 호출 탭이 없으면 "호출 없음"으로 조용히 넘긴다. */
+  if (!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(APP.sheets.calls)) {
+    return { ok: true, version: 3, serverTime: isoNow_(), calls: [] };
+  }
+  const today = today_();
+  const calls = readObjects_('calls').filter(function (call) {
+    return isCallToday_(call, today) && String(call.status) !== '취소';
+  });
+  return {
+    ok: true,
+    version: 3,
+    serverTime: isoNow_(),
+    calls: calls.map(publicCall_),
+  };
+}
+
+function createCall_(call) {
+  const number = Number(String(call.number || '').replace(/\D/g, ''));
+  if (!Number.isInteger(number) || number < 1 || number > 99) throw new Error('호출할 학생 번호를 확인해주세요.');
+  const student = readObjects_('students').filter(isStudentActive_).find(function (row) {
+    return Number(row.number) === number;
+  });
+  if (!student) throw new Error(number + '번 학생을 명단에서 찾을 수 없습니다.');
+
+  const today = today_();
+  const existing = readObjects_('calls').find(function (row) {
+    return isCallActive_(row, today) && Number(row.number) === number;
+  });
+  const clean = {
+    call_id: existing ? String(existing.call_id) : id_('C'),
+    student_id: studentId_(student),
+    number: number,
+    caller: String(call.caller || '담임T').trim().slice(0, 20) || '담임T',
+    reason: String(call.reason || '').trim().slice(0, 60),
+    status: '호출중',
+    created_at: isoNow_(),
+    acked_at: '',
+    acked_by: '',
+  };
+  upsertObject_('calls', 'call_id', clean);
+  audit_('호출', '학생호출', clean.call_id, number + '번 ' + (clean.reason || '사유 없음'));
+  return { ok: true, call: publicCall_(clean) };
+}
+
+/* 교실 화면의 담당 학생이 누른다. 전달 완료 표시만 할 수 있고
+   호출을 만들거나 지울 수는 없다. */
+function ackCall_(body) {
+  requireBoard_(body && body.board);
+  ensureClassPlannerSheets_();
+  const call = findObject_('calls', 'call_id', body && body.callId);
+  if (!call) throw new Error('호출을 찾을 수 없습니다.');
+  if (!isCallActive_(call, today_())) throw new Error('이미 처리되었거나 지난 호출입니다.');
+  const updated = Object.assign({}, call, {
+    status: '전달완료',
+    acked_at: isoNow_(),
+    acked_by: String((body && body.by) || '').trim().slice(0, 20),
+  });
+  upsertObject_('calls', 'call_id', updated);
+  audit_('전달완료', '학생호출', updated.call_id, String(updated.number) + '번');
+  return { ok: true, call: publicCall_(updated) };
+}
+
+function cancelCall_(callId) {
+  const call = findObject_('calls', 'call_id', callId);
+  if (!call) throw new Error('호출을 찾을 수 없습니다.');
+  const updated = Object.assign({}, call, { status: '취소' });
+  upsertObject_('calls', 'call_id', updated);
+  audit_('호출취소', '학생호출', updated.call_id, String(updated.number) + '번');
+  return { ok: true };
+}
+
+function requireBoard_(key) {
+  const expected = PropertiesService.getScriptProperties().getProperty('BOARD_KEY_HASH');
+  if (!expected) throw new Error('교실 화면 코드가 아직 설정되지 않았습니다.');
+  if (!key || sha256_(String(key)) !== expected) throw new Error('교실 화면 코드가 맞지 않습니다.');
 }
 
 function upsertPlannerItem_(item) {
@@ -929,6 +1086,10 @@ function applyValidations_(ss) {
   if (planner) {
     planner.getRange('C2:C').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.categories, true).build());
     planner.getRange('J2:J').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.plannerStatuses, true).build());
+  }
+  const calls = ss.getSheetByName(APP.sheets.calls);
+  if (calls) {
+    calls.getRange('F2:F').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.callStatuses, true).build());
   }
   if (notices) {
     notices.getRange('K2:K').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.noticeStatuses, true).build());
