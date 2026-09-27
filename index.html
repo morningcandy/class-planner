@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#3157d5">
   <title>효니효의 개인 알림장</title>
-  <link rel="stylesheet" href="styles.css?v=20260920-cal1">
+  <link rel="stylesheet" href="styles.css?v=20260928-confirm1">
   <link rel="stylesheet" href="theme-b.css?v=20260920-cal1">
   <script>
     /* 저장해 둔 디자인을 첫 페인트 전에 적용해 깜빡임을 막는다. */
@@ -82,13 +82,18 @@
         <div>
           <p class="eyebrow">CALL</p>
           <h2>학생 호출</h2>
-          <span class="muted hint-sm" id="callHint">번호를 누르면 교실 화면에 바로 뜹니다.</span>
+          <span class="muted hint-sm" id="callHint">번호를 고른 뒤 [호출]을 눌러야 교실 화면에 뜹니다.</span>
         </div>
       </div>
       <label class="call-reason">사유 (선택)
         <input id="callReason" maxlength="60" placeholder="예: 결석신고서 제출 — 비우면 호출만 표시됩니다">
       </label>
       <div class="call-numbers" id="callNumbers"></div>
+      <div class="call-actions">
+        <span class="call-picked" id="callPicked">번호를 골라주세요</span>
+        <button type="button" class="call-go" id="callGo" disabled>호출</button>
+        <button type="button" class="call-clear" id="callClear" disabled>취소</button>
+      </div>
       <div class="call-today" id="callToday"></div>
     </section>
 
@@ -341,7 +346,7 @@
   <script src="config.js"></script>
   <script src="attachment-utils.js?v=20260816-files1"></script>
   <script src="app.js?v=20260920-cal1"></script>
-  <script src="call-panel.js?v=20260923-call2"></script>
+  <script src="call-panel.js?v=20260928-confirm1"></script>
   <script src="teacher-timetable.js?v=20260907-tt1"></script>
   <script src="teacher-search.js?v=20260907-tt1"></script>
   <script src="exam-schedule.js?v=20260917-exam2"></script>

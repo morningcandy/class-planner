@@ -1,5 +1,6 @@
 /* 학생 호출 패널
-   번호를 누르면 교실 컴퓨터에 띄워둔 호출 화면(class-notice/board/)에 바로 뜬다.
+   번호를 고르고 [호출]을 눌러야 교실 컴퓨터에 띄워둔 호출 화면(class-notice/board/)에 뜬다.
+   번호만 잘못 눌러도 호출이 나가지 않도록 선택과 호출을 나눴다.
    명단과 오늘 호출은 app.js가 보내는 'planner:data' 이벤트로만 받는다. */
 (function () {
   'use strict';
@@ -13,9 +14,12 @@
   const reasonInput = document.getElementById('callReason');
   const todayBox = document.getElementById('callToday');
   const hint = document.getElementById('callHint');
+  const picked = document.getElementById('callPicked');
+  const goButton = document.getElementById('callGo');
+  const clearButton = document.getElementById('callClear');
   if (!panel || !numbers) return;
 
-  const state = { students: [], calls: [], busy: false };
+  const state = { students: [], calls: [], busy: false, selected: null };
   const esc = (value) => String(value == null ? '' : value).replace(/[&<>'"]/g, (char) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
   })[char]);
@@ -45,7 +49,9 @@
     numbers.innerHTML = state.students.map(function (student) {
       const number = Number(student.number);
       const call = activeCallOf(number);
-      return '<button type="button" class="call-num' + (call ? ' calling' : '') + '"' +
+      const selected = state.selected === number;
+      return '<button type="button" class="call-num' + (call ? ' calling' : '') + (selected ? ' selected' : '') + '"' +
+        ' aria-pressed="' + selected + '"' +
         ' data-number="' + esc(number) + '"' +
         ' title="' + esc(call ? (call.reason || '호출 중') : (student.name || '')) + '">' +
         esc(number) + '</button>';
@@ -67,11 +73,25 @@
         (done ? '' : ' <button type="button" class="call-cancel" data-cancel="' + esc(call.id) + '">취소</button>') +
         '</span>';
     }).join('') : '<span class="muted hint-sm">오늘 호출 없음</span>';
+    renderActions();
+  }
+
+  function renderActions() {
+    if (!picked) return;
+    const number = state.selected;
+    const student = state.students.find(function (item) { return Number(item.number) === number; });
+    picked.textContent = number == null
+      ? '번호를 골라주세요'
+      : number + '번' + (student && student.name ? ' ' + student.name : '') + ' 선택됨' +
+        (activeCallOf(number) ? ' · 이미 호출 중' : '');
+    if (goButton) goButton.disabled = number == null || state.busy;
+    if (clearButton) clearButton.disabled = number == null || state.busy;
   }
 
   async function call(number) {
-    if (state.busy) return;
+    if (state.busy || number == null) return;
     state.busy = true;
+    renderActions();
     try {
       const result = await api('createCall', {
         call: { number: number, reason: reasonInput.value.trim(), caller: '담임T' },
@@ -81,11 +101,13 @@
         return String(item.id) !== String(result.call.id);
       }).concat([result.call]);
       hint.textContent = number + '번 호출을 교실 화면에 띄웠습니다.';
+      state.selected = null;
       render();
     } catch (error) {
       hint.textContent = error.message;
     } finally {
       state.busy = false;
+      renderActions();
     }
   }
 
@@ -106,9 +128,20 @@
     }
   }
 
+  /* 번호는 고르기만 한다. 같은 번호를 다시 누르면 선택이 풀린다. */
   numbers.addEventListener('click', function (event) {
     const button = event.target.closest('.call-num');
-    if (button) call(Number(button.dataset.number));
+    if (!button) return;
+    const number = Number(button.dataset.number);
+    state.selected = state.selected === number ? null : number;
+    render();
+  });
+
+  if (goButton) goButton.addEventListener('click', function () { call(state.selected); });
+  if (clearButton) clearButton.addEventListener('click', function () {
+    state.selected = null;
+    hint.textContent = '선택을 취소했습니다. 호출은 보내지 않았습니다.';
+    render();
   });
 
   todayBox.addEventListener('click', function (event) {
