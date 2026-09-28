@@ -102,3 +102,56 @@ test('exposes only display fields of a call, never the student code', () => {
   assert.equal(shaped.number, 2);
   assert.equal(JSON.stringify(shaped).includes('021234'), false);
 });
+
+test('picks the Thursday to assign only from Wednesday 07:00 through Thursday', () => {
+  const context = appsScriptContext();
+  const run = (now) => vm.runInContext(`recyclingTarget_(${JSON.stringify(now)})`, context);
+  assert.equal(run('2026-09-29 12:00'), '');
+  assert.equal(run('2026-09-30 06:59'), '');
+  assert.equal(run('2026-09-30 07:00'), '2026-10-01');
+  assert.equal(run('2026-10-01 15:00'), '2026-10-01');
+  assert.equal(run('2026-10-02 08:00'), '');
+  assert.equal(vm.runInContext("dateAdd_('2026-09-30', 2)", context), '2026-10-02');
+  assert.equal(vm.runInContext("dateAdd_('2026-10-01', -1)", context), '2026-09-30');
+});
+
+test('assigns recycling in late order, two per week, pushing repeated numbers to later weeks', () => {
+  const context = appsScriptContext();
+  const late = (id, date, number, extra) => Object.assign(
+    { late_id: id, date, number: String(number), student_id: 'S' + String(number).padStart(3, '0'), status: '유효', duty_id: '', created_at: date + 'T08:30:00+09:00' },
+    extra || {}
+  );
+  context.__lates = [
+    late('L3', '2026-09-25', 12),
+    late('L1', '2026-09-24', 5),
+    late('L2', '2026-09-24', 5, { created_at: '2026-09-24T08:31:00+09:00' }),
+    late('L4', '2026-09-28', 20),
+    late('L5', '2026-09-28', 7, { status: '취소' }),
+    late('L6', '2026-09-23', 9, { duty_id: 'R_old' }),
+  ];
+  context.__duties = [];
+  const picks = JSON.parse(vm.runInContext("JSON.stringify(planRecycling_('2026-10-01', __duties, __lates, 2))", context));
+  assert.deepEqual(picks.map((pick) => pick.number), [5, 12]);
+  assert.deepEqual(picks.map((pick) => pick.late_ids), [['L1'], ['L3']]);
+  assert.equal(picks[0].student_id, 'S005');
+
+  // 다음 주: L2(5번 두 번째)와 L4(20번)가 남아 있다.
+  context.__lates = context.__lates.map((row) => (row.late_id === 'L1' || row.late_id === 'L3') ? Object.assign({}, row, { duty_id: 'R' }) : row);
+  const next = JSON.parse(vm.runInContext("JSON.stringify(planRecycling_('2026-10-08', __duties, __lates, 2))", context));
+  assert.deepEqual(next.map((pick) => pick.number), [5, 20]);
+});
+
+test('puts last week unfinished recycling duty first', () => {
+  const context = appsScriptContext();
+  context.__duties = [
+    { duty_id: 'R1', duty_date: '2026-10-01', number: '12', student_id: 'S012', late_ids: 'L3', status: '배정' },
+    { duty_id: 'R0', duty_date: '2026-10-01', number: '5', student_id: 'S005', late_ids: 'L1', status: '완료' },
+    { duty_id: 'R9', duty_date: '2026-10-08', number: '3', student_id: 'S003', late_ids: 'L9', status: '배정' },
+  ];
+  context.__lates = [
+    { late_id: 'L2', date: '2026-09-24', number: '5', student_id: 'S005', status: '유효', duty_id: '', created_at: 'a' },
+    { late_id: 'L4', date: '2026-09-28', number: '12', student_id: 'S012', status: '유효', duty_id: '', created_at: 'b' },
+  ];
+  const picks = JSON.parse(vm.runInContext("JSON.stringify(planRecycling_('2026-10-08', __duties, __lates, 2))", context));
+  assert.deepEqual(picks.map((pick) => [pick.number, pick.carried_from]), [[12, 'R1'], [5, '']]);
+});

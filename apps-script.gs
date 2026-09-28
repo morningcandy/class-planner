@@ -15,6 +15,8 @@ const APP = Object.freeze({
     responses: '앱_학생응답',
     audit: '앱_변경기록',
     calls: '앱_호출',
+    lates: '앱_지각기록',
+    duties: '앱_분리수거',
   },
   headers: {
     students: ['student_id', 'number', 'name', 'personal_code', 'active', 'note'],
@@ -24,11 +26,16 @@ const APP = Object.freeze({
     responses: ['responded_at', 'student_id', 'item_type', 'item_id', 'response'],
     audit: ['changed_at', 'actor', 'action', 'record_type', 'record_id', 'summary'],
     calls: ['call_id', 'student_id', 'number', 'caller', 'reason', 'status', 'created_at', 'acked_at', 'acked_by'],
+    lates: ['late_id', 'date', 'number', 'student_id', 'status', 'duty_id', 'created_at', 'updated_at'],
+    duties: ['duty_id', 'duty_date', 'number', 'student_id', 'late_ids', 'status', 'carried_from', 'notice_id', 'created_at', 'done_at'],
   },
   categories: ['학급', '교과', '개인'],
   noticeStatuses: ['검토대기', '보류', '게시됨', '종료됨'],
   plannerStatuses: ['진행', '완료'],
   callStatuses: ['호출중', '전달완료', '취소'],
+  lateStatuses: ['유효', '취소'],
+  dutyStatuses: ['배정', '완료', '미완료'],
+  recyclePerWeek: 2,
 });
 
 function onOpen() {
@@ -39,6 +46,7 @@ function onOpen() {
     .addItem('3. 관리자 토큰 설정', 'setAdminToken')
     .addItem('4. OpenAI API 키 설정(선택)', 'setOpenAIKey')
     .addItem('5. 교실 화면 코드 설정', 'setBoardKey')
+    .addItem('6. 지각 체크 비밀번호 설정', 'setLateKey')
     .addItem('연결 상태 확인', 'showSetupStatus')
     .addToUi();
 }
@@ -134,6 +142,33 @@ function setBoardKey() {
   ui.alert('교실 화면 코드를 저장했습니다. 교실 컴퓨터에서 한 번 입력하면 그 컴퓨터에 저장됩니다.');
 }
 
+/* 지각 체커 학생들이 학급 알림장 late/ 화면에서 쓰는 공용 비밀번호.
+   이 비밀번호로는 지각 체크와 분리수거 완료 표시만 할 수 있다. */
+function setLateKey() {
+  const ui = SpreadsheetApp.getUi();
+  const result = ui.prompt(
+    '지각 체크 비밀번호 설정',
+    '지각 체커 친구들이 지각 체크 화면을 열 때 쓸 비밀번호입니다. 4자 이상으로 정하세요.\n' +
+    '비워서 확인하면 지각 체크 화면을 잠급니다.',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (result.getSelectedButton() !== ui.Button.OK) return;
+  const key = result.getResponseText().trim();
+  const props = PropertiesService.getScriptProperties();
+  if (!key) {
+    props.deleteProperty('LATE_KEY_HASH');
+    ui.alert('지각 체크 비밀번호를 삭제했습니다. 지각 체크 화면이 열리지 않습니다.');
+    return;
+  }
+  if (key.length < 4) {
+    ui.alert('비밀번호가 너무 짧습니다. 4자 이상으로 설정해주세요.');
+    return;
+  }
+  props.setProperty('LATE_KEY_HASH', sha256_(key));
+  ensureClassPlannerSheets_();
+  ui.alert('지각 체크 비밀번호를 저장했습니다. 체커 친구들에게만 알려주세요.');
+}
+
 function showSetupStatus() {
   const props = PropertiesService.getScriptProperties();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -144,6 +179,7 @@ function showSetupStatus() {
     '시트: ' + (missing.length ? '누락 - ' + missing.join(', ') : '정상') + '\n' +
     '관리자 토큰: ' + (props.getProperty('ADMIN_TOKEN_HASH') ? '설정됨' : '미설정') + '\n' +
     '교실 화면 코드: ' + (props.getProperty('BOARD_KEY_HASH') ? '설정됨' : '미설정 - 호출 화면 잠김') + '\n' +
+    '지각 체크 비밀번호: ' + (props.getProperty('LATE_KEY_HASH') ? '설정됨' : '미설정 - 지각 체크 화면 잠김') + '\n' +
     'AI 정리: ' + (props.getProperty('OPENAI_API_KEY') ? '사용 가능' : '미설정 - 기본 정리 사용')
   );
 }
@@ -156,6 +192,9 @@ function doGet(e) {
     }
     if (action === 'board') {
       return json_(getBoardFeed_(String((e && e.parameter && e.parameter.board) || '')));
+    }
+    if (action === 'late') {
+      return json_(getLateFeed_(String((e && e.parameter && e.parameter.key) || ''), String((e && e.parameter && e.parameter.date) || '')));
     }
     return json_(getStudentFeed_(String((e && e.parameter && e.parameter.code) || '')));
   } catch (error) {
@@ -176,6 +215,14 @@ function doPost(e) {
        교실 화면 코드가 필요하고, 할 수 있는 일은 전달 완료 표시뿐이다. */
     if (action === 'ackCall') {
       return json_(ackCall_(body));
+    }
+
+    /* 지각 체커가 누르는 버튼. 지각 체크 비밀번호가 필요하다. */
+    if (action === 'setLate') {
+      return json_(setLate_(body));
+    }
+    if (action === 'setDuty') {
+      return json_(setDuty_(body));
     }
 
     requireAdmin_(body.token);
@@ -604,6 +651,8 @@ function enforceCommand_(analysis, command) {
 }
 
 function getStudentFeed_(code) {
+  /* 수요일 조회 무렵 학생들이 처음 열 때 이번 주 분리수거 공지를 만든다. 실패해도 알림장은 그대로 보여준다. */
+  try { ensureWeeklyRecycling_(); } catch (error) { console.error(error); }
   const students = readObjects_('students');
   const normalized = normalizeStudentCode_(code);
   const matches = normalized ? students.filter(function (row) {
@@ -782,6 +831,269 @@ function requireBoard_(key) {
   const expected = PropertiesService.getScriptProperties().getProperty('BOARD_KEY_HASH');
   if (!expected) throw new Error('교실 화면 코드가 아직 설정되지 않았습니다.');
   if (!key || sha256_(String(key)) !== expected) throw new Error('교실 화면 코드가 맞지 않습니다.');
+}
+
+/* ── 지각 체크 · 목요일 분리수거 ─────────────────────────────────
+   지각 체커가 날짜별로 번호를 체크하면 앱_지각기록에 쌓인다.
+   수요일 07:00 이후 처음 들어온 요청이 이번 주 목요일 분리수거 당번을 정해
+   학급 전체 공지로 올린다(트리거 없이 동작 — 권한 재승인이 필요 없다).
+   - 지각 기록을 날짜 순서로 줄 세워 한 주에 최대 APP.recyclePerWeek명.
+   - 같은 번호가 줄에 또 있으면 그 기록은 다음 주로 넘어간다.
+   - 지난 당번 중 완료 체크가 없는 학생은 미완료로 바꾸고 이번 주 맨 앞에 다시 배정한다. */
+
+function requireLateKey_(key) {
+  const expected = PropertiesService.getScriptProperties().getProperty('LATE_KEY_HASH');
+  if (!expected) throw new Error('지각 체크 비밀번호가 아직 설정되지 않았습니다.');
+  if (!key || sha256_(String(key)) !== expected) throw new Error('지각 체크 비밀번호가 맞지 않습니다.');
+}
+
+function ensureLateSheets_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss.getSheetByName(APP.sheets.lates) || !ss.getSheetByName(APP.sheets.duties)) ensureClassPlannerSheets_();
+}
+
+/* "yyyy-MM-dd" 문자열끼리만 계산한다. 서버 시간대와 상관없이 같은 결과가 나온다. */
+function dateAdd_(dateStr, days) {
+  const parts = String(dateStr).split('-').map(Number);
+  const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + days));
+  return date.getUTCFullYear() + '-' + pad2_(date.getUTCMonth() + 1) + '-' + pad2_(date.getUTCDate());
+}
+
+function weekday_(dateStr) {
+  const parts = String(dateStr).split('-').map(Number);
+  return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])).getUTCDay();
+}
+
+/* 지금("yyyy-MM-dd HH:mm") 정해야 할 목요일. 수요일 07:00 ~ 목요일 사이에만 값이 있다. */
+function recyclingTarget_(nowText) {
+  const date = String(nowText).slice(0, 10);
+  const time = String(nowText).slice(11, 16);
+  const day = weekday_(date);
+  if (day === 3 && time >= '07:00') return dateAdd_(date, 1);
+  if (day === 4) return date;
+  return '';
+}
+
+function compareText_(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/* 시트를 건드리지 않는 순수 계산. 테스트에서 그대로 부른다. */
+function planRecycling_(target, duties, lates, perWeek) {
+  const limit = Math.max(1, Number(perWeek) || 2);
+  const picks = [];
+  const taken = {};
+  duties.filter(function (duty) {
+    return String(duty.status) === '배정' && normalizeDate_(duty.duty_date) < target;
+  }).sort(function (a, b) {
+    return compareText_(normalizeDate_(a.duty_date), normalizeDate_(b.duty_date));
+  }).forEach(function (duty) {
+    const number = Number(duty.number);
+    if (picks.length >= limit || taken[number]) return;
+    taken[number] = true;
+    picks.push({ number: number, student_id: String(duty.student_id || ''), late_ids: splitIds_(duty.late_ids), carried_from: String(duty.duty_id) });
+  });
+  lates.filter(function (late) {
+    return String(late.status) === '유효' && !String(late.duty_id || '').trim();
+  }).sort(function (a, b) {
+    return compareText_(normalizeDate_(a.date) + ' ' + a.created_at, normalizeDate_(b.date) + ' ' + b.created_at);
+  }).forEach(function (late) {
+    const number = Number(late.number);
+    if (picks.length >= limit || taken[number]) return;
+    taken[number] = true;
+    picks.push({ number: number, student_id: String(late.student_id || ''), late_ids: [String(late.late_id)], carried_from: '' });
+  });
+  return picks;
+}
+
+function ensureWeeklyRecycling_() {
+  const target = recyclingTarget_(nowMinute_());
+  if (!target) return null;
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('RECYCLE_DONE_FOR') === target) return null;
+  if (!props.getProperty('LATE_KEY_HASH')) return null;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss.getSheetByName(APP.sheets.lates) || !ss.getSheetByName(APP.sheets.duties)) return null;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return null;
+  try {
+    if (props.getProperty('RECYCLE_DONE_FOR') === target) return null;
+    const result = assignRecycling_(target);
+    props.setProperty('RECYCLE_DONE_FOR', target);
+    return result;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function assignRecycling_(target) {
+  const duties = readObjects_('duties');
+  const lates = readObjects_('lates');
+  const picks = planRecycling_(target, duties, lates, APP.recyclePerWeek);
+  if (!picks.length) {
+    audit_('자동배정', '분리수거', '', target + ' 지각 기록 없음 - 기존 담당', '자동');
+    return { target: target, numbers: [] };
+  }
+  const now = isoNow_();
+  const numbers = picks.map(function (pick) { return pick.number; });
+  const notice = recyclingNotice_(target, numbers, now);
+  upsertObject_('notices', 'notice_id', notice);
+  // 학급 공지는 개인 알림장에도 같이 둔다(교사 화면에 보이도록).
+  upsertObject_('planner', 'item_id', {
+    item_id: id_('P'),
+    input_id: '',
+    category: '학급',
+    item_type: '일정',
+    title: notice.title,
+    date: target,
+    due_date: '',
+    note: notice.title + '\n' + notice.content,
+    priority: '보통',
+    status: '진행',
+    linked_notice_ids: notice.notice_id,
+    created_at: now,
+    updated_at: now,
+  });
+
+  picks.forEach(function (pick) {
+    const dutyId = id_('R');
+    upsertObject_('duties', 'duty_id', {
+      duty_id: dutyId,
+      duty_date: target,
+      number: pick.number,
+      student_id: pick.student_id,
+      late_ids: pick.late_ids.join(','),
+      status: '배정',
+      carried_from: pick.carried_from,
+      notice_id: notice.notice_id,
+      created_at: now,
+      done_at: '',
+    });
+    if (pick.carried_from) {
+      const old = duties.find(function (duty) { return String(duty.duty_id) === pick.carried_from; });
+      upsertObject_('duties', 'duty_id', Object.assign({}, old, { status: '미완료' }));
+    } else {
+      const late = lates.find(function (row) { return String(row.late_id) === pick.late_ids[0]; });
+      upsertObject_('lates', 'late_id', Object.assign({}, late, { duty_id: dutyId, updated_at: now }));
+    }
+  });
+  audit_('자동배정', '분리수거', notice.notice_id, target + ' ' + numbers.join(',') + '번', '자동');
+  return { target: target, numbers: numbers, noticeId: notice.notice_id };
+}
+
+function recyclingNotice_(target, numbers, now) {
+  const parts = target.split('-').map(Number);
+  const names = numbers.map(function (number) { return number + '번'; }).join(', ');
+  return {
+    notice_id: id_('N'),
+    input_id: '',
+    scope: '학급전체',
+    target_student_ids: '',
+    title: '목요일 분리수거 당번',
+    content: parts[1] + '월 ' + parts[2] + '일(목) 분리수거는 ' + names + ' 학생이 맡아주세요.\n' +
+      '지각 체크 순서대로 정해졌어요. 분리수거를 마치면 지각 체커 친구에게 알려주세요.',
+    notice_date: dateAdd_(target, -1),
+    due_date: '',
+    urgent: 'FALSE',
+    notice_type: '공지',
+    status: '게시됨',
+    published_at: now,
+    ends_at: target,
+    created_at: now,
+    updated_at: now,
+    sort_order: nextNoticeSortOrder_(1),
+    starts_at: '',
+  };
+}
+
+function activeNumbers_() {
+  return readObjects_('students').filter(isStudentActive_).map(function (student) {
+    return Number(student.number);
+  }).filter(function (number) { return number > 0; }).sort(function (a, b) { return a - b; });
+}
+
+/* 체커 화면용. 이름·개인코드 없이 번호만 내려보낸다. */
+function getLateFeed_(key, date) {
+  requireLateKey_(key);
+  ensureLateSheets_();
+  try { ensureWeeklyRecycling_(); } catch (error) { console.error(error); }
+  const today = today_();
+  const day = normalizeDate_(date) || today;
+  const lates = readObjects_('lates').filter(function (late) { return String(late.status) === '유효'; });
+  const duties = readObjects_('duties');
+  const dutyDates = duties.map(function (duty) { return normalizeDate_(duty.duty_date); })
+    .filter(function (value, index, list) { return value && list.indexOf(value) === index; })
+    .sort().reverse().slice(0, 4);
+  // 다음 배정 때 누가 먼저인지 미리 보여준다(인원 제한 없이 전체 순서).
+  const upcoming = planRecycling_('9999-12-31', duties.filter(function (duty) {
+    return normalizeDate_(duty.duty_date) < today;
+  }), lates, 99);
+  return {
+    ok: true,
+    today: today,
+    date: day,
+    perWeek: APP.recyclePerWeek,
+    numbers: activeNumbers_(),
+    lates: lates.filter(function (late) { return normalizeDate_(late.date) === day; }).map(function (late) {
+      return { id: String(late.late_id), number: Number(late.number), assigned: !!String(late.duty_id || '').trim() };
+    }),
+    duties: duties.filter(function (duty) { return dutyDates.indexOf(normalizeDate_(duty.duty_date)) >= 0; }).map(function (duty) {
+      return {
+        id: String(duty.duty_id), date: normalizeDate_(duty.duty_date), number: Number(duty.number),
+        status: String(duty.status), carried: !!String(duty.carried_from || '').trim(),
+      };
+    }),
+    queue: upcoming.map(function (pick) { return { number: pick.number, carried: !!pick.carried_from }; }),
+  };
+}
+
+function setLate_(body) {
+  requireLateKey_(body && body.key);
+  ensureLateSheets_();
+  const today = today_();
+  const date = normalizeDate_(body.date);
+  if (!date || date > today) throw new Error('오늘이나 지난 날짜만 체크할 수 있어요.');
+  if (date < dateAdd_(today, -60)) throw new Error('두 달보다 오래된 날짜는 선생님께 말씀드려 주세요.');
+  const number = Number(String(body.number || '').replace(/\D/g, ''));
+  const student = readObjects_('students').filter(isStudentActive_).find(function (row) {
+    return Number(row.number) === number;
+  });
+  if (!student) throw new Error(number + '번 학생을 명단에서 찾을 수 없습니다.');
+  const existing = readObjects_('lates').find(function (late) {
+    return String(late.status) === '유효' && normalizeDate_(late.date) === date && Number(late.number) === number;
+  });
+  const now = isoNow_();
+  if (body.late) {
+    if (existing) return { ok: true };
+    upsertObject_('lates', 'late_id', {
+      late_id: id_('L'), date: date, number: number, student_id: studentId_(student),
+      status: '유효', duty_id: '', created_at: now, updated_at: now,
+    });
+    audit_('지각체크', '지각기록', date, number + '번', '지각체커');
+    return { ok: true };
+  }
+  if (!existing) return { ok: true };
+  if (String(existing.duty_id || '').trim()) {
+    throw new Error('이미 분리수거 당번으로 정해진 기록이라 취소할 수 없어요. 선생님께 말씀드려 주세요.');
+  }
+  // 행은 지우지 않고 취소로만 표시한다(기록 보존).
+  upsertObject_('lates', 'late_id', Object.assign({}, existing, { status: '취소', updated_at: now }));
+  audit_('지각취소', '지각기록', date, number + '번', '지각체커');
+  return { ok: true };
+}
+
+function setDuty_(body) {
+  requireLateKey_(body && body.key);
+  ensureLateSheets_();
+  const duty = findObject_('duties', 'duty_id', body && body.dutyId);
+  if (!duty) throw new Error('분리수거 기록을 찾을 수 없습니다.');
+  if (String(duty.status) === '미완료') throw new Error('다음 주로 넘어간 기록이에요. 이번 주 당번 칸에서 체크해 주세요.');
+  const updated = Object.assign({}, duty, body.done
+    ? { status: '완료', done_at: isoNow_() }
+    : { status: '배정', done_at: '' });
+  upsertObject_('duties', 'duty_id', updated);
+  audit_(body.done ? '분리수거완료' : '분리수거완료취소', '분리수거', updated.duty_id, String(updated.number) + '번', '지각체커');
+  return { ok: true };
 }
 
 function upsertPlannerItem_(item) {
@@ -1087,6 +1399,17 @@ function applyValidations_(ss) {
     planner.getRange('C2:C').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.categories, true).build());
     planner.getRange('J2:J').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.plannerStatuses, true).build());
   }
+  const lates = ss.getSheetByName(APP.sheets.lates);
+  if (lates) {
+    // 날짜는 "2026-09-28" 텍스트로 둔다. 날짜 서식이면 표시값이 "2026. 9. 28"로 바뀐다.
+    lates.getRange('B2:B').setNumberFormat('@');
+    lates.getRange('E2:E').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.lateStatuses, true).build());
+  }
+  const duties = ss.getSheetByName(APP.sheets.duties);
+  if (duties) {
+    duties.getRange('B2:B').setNumberFormat('@');
+    duties.getRange('F2:F').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.dutyStatuses, true).build());
+  }
   const calls = ss.getSheetByName(APP.sheets.calls);
   if (calls) {
     calls.getRange('F2:F').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(APP.callStatuses, true).build());
@@ -1179,9 +1502,9 @@ function resolveTargets_(names, students) {
   return { ids: ids, missing: missing };
 }
 
-function audit_(action, recordType, recordId, summary) {
+function audit_(action, recordType, recordId, summary, actor) {
   appendObjects_('audit', [{
-    changed_at: isoNow_(), actor: '관리자', action: action,
+    changed_at: isoNow_(), actor: actor || '관리자', action: action,
     record_type: recordType, record_id: recordId, summary: summary,
   }]);
 }
