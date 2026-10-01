@@ -930,10 +930,7 @@ function assignRecycling_(target) {
   const duties = readObjects_('duties');
   const lates = readObjects_('lates');
   const picks = planRecycling_(target, duties, lates, APP.recyclePerWeek);
-  if (!picks.length) {
-    audit_('자동배정', '분리수거', '', target + ' 지각 기록 없음 - 기존 담당', '자동');
-    return { target: target, numbers: [] };
-  }
+  // 지각자가 없는 주에도 "기존 담당" 공지를 띄워 헷갈리지 않게 한다.
   const now = isoNow_();
   const numbers = picks.map(function (pick) { return pick.number; });
   const notice = recyclingNotice_(target, numbers, now);
@@ -977,7 +974,8 @@ function assignRecycling_(target) {
       upsertObject_('lates', 'late_id', Object.assign({}, late, { duty_id: dutyId, updated_at: now }));
     }
   });
-  audit_('자동배정', '분리수거', notice.notice_id, target + ' ' + numbers.join(',') + '번', '자동');
+  audit_('자동배정', '분리수거', notice.notice_id,
+    target + ' ' + (numbers.length ? numbers.join(',') + '번' : '지각 기록 없음 - 기존 담당'), '자동');
   return { target: target, numbers: numbers, noticeId: notice.notice_id };
 }
 
@@ -990,8 +988,11 @@ function recyclingNotice_(target, numbers, now) {
     scope: '학급전체',
     target_student_ids: '',
     title: '목요일 분리수거 당번',
-    content: parts[1] + '월 ' + parts[2] + '일(목) 분리수거는 ' + names + ' 학생이 맡아주세요.\n' +
-      '지각 체크 순서대로 정해졌어요. 분리수거를 마치면 지각 체커 친구에게 알려주세요.',
+    content: numbers.length
+      ? parts[1] + '월 ' + parts[2] + '일(목) 분리수거는 ' + names + ' 학생이 맡아주세요.\n' +
+        '지각 체크 순서대로 정해졌어요. 분리수거를 마치면 지각 체커 친구에게 알려주세요.'
+      : parts[1] + '월 ' + parts[2] + '일(목) 분리수거는 기존 담당 친구가 맡아요.\n' +
+        '이번 주는 지각 기록이 없어요.',
     notice_date: dateAdd_(target, -1),
     due_date: '',
     urgent: 'FALSE',
