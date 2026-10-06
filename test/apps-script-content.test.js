@@ -168,3 +168,26 @@ test('writes a "regular helper" recycling notice when nobody was late', () => {
   const two = vm.runInContext("recyclingNotice_('2026-10-08', [5, 17], 'now')", context);
   assert.match(two.content, /5번, 17번 학생이 맡아주세요/);
 });
+
+test('projects upcoming Thursdays two at a time, repeats going to later weeks', () => {
+  const context = appsScriptContext();
+  const late = (id, date, number) => ({ late_id: id, date, number: String(number), student_id: '', status: '유효', duty_id: '', created_at: date });
+  context.__lates = [late('L1', '2026-10-05', 5), late('L2', '2026-10-05', 17), late('L3', '2026-10-06', 5), late('L4', '2026-10-06', 9)];
+  context.__duties = [{ duty_id: 'R1', duty_date: '2026-10-01', number: '20', student_id: '', late_ids: 'L0', status: '배정' }];
+  const plan = JSON.parse(vm.runInContext("JSON.stringify(projectRecycling_('2026-10-08', __duties, __lates, 2, 6))", context));
+  assert.deepEqual(plan.map((week) => [week.date, week.numbers.map((n) => n.number + (n.carried ? '*' : ''))]), [
+    ['2026-10-08', ['20*', '5']],
+    ['2026-10-15', ['17', '5']],
+    ['2026-10-22', ['9']],
+  ]);
+  assert.equal(context.__lates[0].duty_id, '');
+});
+
+test('starts the projection at the next Thursday that is not assigned yet', () => {
+  const context = appsScriptContext();
+  const run = (today, done) => vm.runInContext(`firstOpenThursday_(${JSON.stringify(today)}, ${JSON.stringify(done)})`, context);
+  assert.equal(run('2026-10-06', '2026-10-01'), '2026-10-08');
+  assert.equal(run('2026-10-07', '2026-10-08'), '2026-10-15');
+  assert.equal(run('2026-10-08', ''), '2026-10-08');
+  assert.equal(run('2026-10-09', '2026-10-08'), '2026-10-15');
+});

@@ -1024,11 +1024,11 @@ function getLateFeed_(key, date) {
   const duties = readObjects_('duties');
   const dutyDates = duties.map(function (duty) { return normalizeDate_(duty.duty_date); })
     .filter(function (value, index, list) { return value && list.indexOf(value) === index; })
-    .sort().reverse().slice(0, 4);
+    .sort().reverse().slice(0, 6);
   // 다음 배정 때 누가 먼저인지 미리 보여준다(인원 제한 없이 전체 순서).
-  const upcoming = planRecycling_('9999-12-31', duties.filter(function (duty) {
-    return normalizeDate_(duty.duty_date) < today;
-  }), lates, 99);
+  const pastDuties = duties.filter(function (duty) { return normalizeDate_(duty.duty_date) < today; });
+  const upcoming = planRecycling_('9999-12-31', pastDuties, lates, 99);
+  const assignedFor = PropertiesService.getScriptProperties().getProperty('RECYCLE_DONE_FOR') || '';
   return {
     ok: true,
     today: today,
@@ -1045,7 +1045,40 @@ function getLateFeed_(key, date) {
       };
     }),
     queue: upcoming.map(function (pick) { return { number: pick.number, carried: !!pick.carried_from }; }),
+    schedule: projectRecycling_(firstOpenThursday_(today, assignedFor), pastDuties, lates, APP.recyclePerWeek, 6),
   };
+}
+
+/* 아직 당번을 정하지 않은 가장 가까운 목요일. 이번 주 목요일이 지났거나 이미 정했으면 다음 주. */
+function firstOpenThursday_(today, assignedFor) {
+  let thursday = dateAdd_(today, (4 - weekday_(today) + 7) % 7);
+  if (assignedFor && assignedFor >= thursday) thursday = dateAdd_(assignedFor, 7);
+  return thursday;
+}
+
+/* 지금 기록대로라면 앞으로 어느 목요일에 누가 할지 미리 계산한다(시트는 건드리지 않음).
+   미래 당번은 모두 제때 한다고 보고, 지난 당번 중 완료 체크가 없는 학생만 앞으로 끌어온다. */
+function projectRecycling_(firstTarget, duties, lates, perWeek, weeks) {
+  const simDuties = duties.map(function (duty) { return Object.assign({}, duty); });
+  const simLates = lates.map(function (late) { return Object.assign({}, late); });
+  const schedule = [];
+  for (let week = 0; week < weeks; week += 1) {
+    const target = dateAdd_(firstTarget, 7 * week);
+    const picks = planRecycling_(target, simDuties, simLates, perWeek);
+    if (!picks.length) break;
+    picks.forEach(function (pick) {
+      if (pick.carried_from) {
+        simDuties.forEach(function (duty) { if (String(duty.duty_id) === pick.carried_from) duty.status = '미완료'; });
+      } else {
+        simLates.forEach(function (late) { if (String(late.late_id) === pick.late_ids[0]) late.duty_id = 'SIM'; });
+      }
+    });
+    schedule.push({
+      date: target,
+      numbers: picks.map(function (pick) { return { number: pick.number, carried: !!pick.carried_from }; }),
+    });
+  }
+  return schedule;
 }
 
 function setLate_(body) {
