@@ -161,12 +161,12 @@ test('writes a "regular helper" recycling notice when nobody was late', () => {
   context.id_ = () => 'N_TEST';
   context.nextNoticeSortOrder_ = () => 0;
   const empty = vm.runInContext("recyclingNotice_('2026-10-08', [], 'now')", context);
-  assert.equal(empty.title, '목요일 분리수거 당번');
-  assert.match(empty.content, /^10월 8일\(목\) 분리수거는 기존 담당 친구가 맡아요\.\n이번 주는 지각 기록이 없어요\.$/);
+  assert.equal(empty.title, '분리수거 당번');
+  assert.equal(empty.content, '10월 8일(목) 분리수거 당번\n당번: 기존 담당');
   assert.equal(empty.ends_at, '2026-10-08');
   assert.equal(empty.notice_date, '2026-10-07');
   const two = vm.runInContext("recyclingNotice_('2026-10-08', [5, 17], 'now')", context);
-  assert.match(two.content, /5번, 17번 학생이 맡아주세요/);
+  assert.equal(two.content, '10월 8일(목) 분리수거 당번\n당번: 5번, 17번');
 });
 
 test('projects upcoming Thursdays two at a time, repeats going to later weeks', () => {

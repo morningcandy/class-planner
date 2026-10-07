@@ -987,12 +987,9 @@ function recyclingNotice_(target, numbers, now) {
     input_id: '',
     scope: '학급전체',
     target_student_ids: '',
-    title: '목요일 분리수거 당번',
-    content: numbers.length
-      ? parts[1] + '월 ' + parts[2] + '일(목) 분리수거는 ' + names + ' 학생이 맡아주세요.\n' +
-        '지각 체크 순서대로 정해졌어요. 분리수거를 마치면 지각 체커 친구에게 알려주세요.'
-      : parts[1] + '월 ' + parts[2] + '일(목) 분리수거는 기존 담당 친구가 맡아요.\n' +
-        '이번 주는 지각 기록이 없어요.',
+    title: '분리수거 당번',
+    content: parts[1] + '월 ' + parts[2] + '일(목) 분리수거 당번\n' +
+      '당번: ' + (numbers.length ? names : '기존 담당'),
     notice_date: dateAdd_(target, -1),
     due_date: '',
     urgent: 'FALSE',
