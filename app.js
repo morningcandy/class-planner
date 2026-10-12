@@ -669,14 +669,40 @@
     },
   };
 
+  /* 고사 기간은 examSchedules(../class-notice/data.js, 고사 시간표 패널과 같은 원본)의
+     그날 교시를 시정표로 쓰고, 오후에는 연수 계획(training-schedule.js)을 잇는다.
+     시험 시각이 바뀌면 data.js만 고치면 NOW 카드와 시정표 패널이 함께 따라온다. */
+  function examBellFor(dateStr) {
+    const exams = typeof examSchedules !== 'undefined' && Array.isArray(examSchedules) ? examSchedules : [];
+    for (const exam of exams) {
+      const dayIndex = exam.days.findIndex((day) => day.date === dateStr);
+      if (dayIndex < 0) continue;
+      const slots = exam.days[dayIndex].slots.map((slot, i) => ({
+        // 우리 반은 2학년이라 2학년 과목을 칸 이름으로 쓴다.
+        label: `${i + 1}교시 · ${slot.grades[1] || '2학년 시험 없음'}`,
+        start: slot.start,
+        end: slot.end,
+        kind: 'event',
+      }));
+      const training = (window.TRAINING_SCHEDULE?.rows || [])
+        .filter((row) => row.date === dateStr)
+        .map((row) => {
+          const [start, end] = String(row.time).split('~').map((part) => part.trim());
+          return { label: row.place ? `${row.topic} (${row.place})` : row.topic, start, end, kind: 'event' };
+        });
+      return { note: `${exam.title} ${dayIndex + 1}일차`, slots: slots.concat(training) };
+    }
+    return null;
+  }
+
   /* 그날 실제로 울리는 시정표. 특별 시정표가 없으면 평소 표를 쓴다. */
   function bellFor(dateStr) {
-    const special = SPECIAL_BELLS[dateStr];
+    const special = SPECIAL_BELLS[dateStr] || examBellFor(dateStr);
     return special ? special.slots : BELL;
   }
 
   function bellNoteFor(dateStr) {
-    const special = SPECIAL_BELLS[dateStr];
+    const special = SPECIAL_BELLS[dateStr] || examBellFor(dateStr);
     return special ? special.note : '';
   }
 
@@ -1044,7 +1070,10 @@
 
   function dayLabel(context) {
     if (context.noClass) return `${context.noClassReason} · 수업 없음`;
-    if (context.offTimetable) return `${context.offTimetable} · 정규 시간표 아님`;
+    if (context.offTimetable) {
+      const examNote = bellNoteFor(context.dateStr);
+      return examNote ? `${examNote} · 고사 시정표` : `${context.offTimetable} · 정규 시간표 아님`;
+    }
     const note = bellNoteFor(context.dateStr);
     const suffix = note ? ` · ${note}` : '';
     if (context.swap) return `${WEEKDAY_NAMES[context.swap.weekday]}요일 시간표로 수업 (${context.swap.source} 반영)${suffix}`;
@@ -1138,7 +1167,7 @@
   }
 
   // 시간표 계산 로직은 브라우저 콘솔·테스트에서 단독으로 확인할 수 있게 열어 둔다.
-  window.ClassPlannerTimetable = { BELL, SPECIAL_BELLS, MY_TIMETABLE, bellFor, bellNoteFor, parseTimetableHints, dayContext, bellStateAt, slotPlan, periodPlan };
+  window.ClassPlannerTimetable = { BELL, SPECIAL_BELLS, MY_TIMETABLE, examBellFor, bellFor, bellNoteFor, parseTimetableHints, dayContext, bellStateAt, slotPlan, periodPlan };
 
   function renderAll() {
     renderSummary();

@@ -17,6 +17,9 @@
     ]
   };
 
+  // 개인 알림장의 고사 기간 시정표(app.js examBellFor)가 오후 연수 시각을 여기서 읽는다.
+  window.TRAINING_SCHEDULE = TRAINING;
+
   const panel = document.getElementById('trainPanel');
   const body = document.getElementById('trainBody');
   const note = document.getElementById('trainNote');
