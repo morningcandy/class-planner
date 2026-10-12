@@ -677,20 +677,27 @@
     for (const exam of exams) {
       const dayIndex = exam.days.findIndex((day) => day.date === dateStr);
       if (dayIndex < 0) continue;
-      const slots = exam.days[dayIndex].slots.map((slot, i) => ({
-        // 우리 반은 2학년이라 2학년 과목을 칸 이름으로 쓴다.
-        label: `${i + 1}교시 · ${slot.grades[1] || '2학년 시험 없음'}`,
-        start: slot.start,
-        end: slot.end,
-        kind: 'event',
-      }));
+      /* 그날 감독표(exam-duty.js)를 받았으면 감독 배정을, 받기 전이면 우리 반(2학년) 과목을 칸 이름으로 쓴다. */
+      const duties = window.EXAM_DUTIES?.[dateStr];
+      const slots = exam.days[dayIndex].slots.map((slot, i) => {
+        const period = i + 1;
+        let label = `${period}교시 · ${slot.grades[1] || '2학년 시험 없음'}`;
+        if (Array.isArray(duties)) {
+          const mine = duties.filter((duty) => duty.period === period);
+          label = mine.length
+            ? `${period}교시 · ${mine.map((duty) => `${duty.duty} (${duty.subject})`).join(', ')}`
+            : `${period}교시 · 감독 없음`;
+        }
+        return { label, start: slot.start, end: slot.end, kind: 'event' };
+      });
       const training = (window.TRAINING_SCHEDULE?.rows || [])
         .filter((row) => row.date === dateStr)
         .map((row) => {
           const [start, end] = String(row.time).split('~').map((part) => part.trim());
           return { label: row.place ? `${row.topic} (${row.place})` : row.topic, start, end, kind: 'event' };
         });
-      return { note: `${exam.title} ${dayIndex + 1}일차`, slots: slots.concat(training) };
+      const dutyNote = Array.isArray(duties) ? ` · 감독 ${duties.length}회` : '';
+      return { note: `${exam.title} ${dayIndex + 1}일차${dutyNote}`, slots: slots.concat(training) };
     }
     return null;
   }
