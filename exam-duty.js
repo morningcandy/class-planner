@@ -4,6 +4,7 @@
    날짜 키가 없으면(감독표 받기 전) 시정표는 2학년 시험 과목만 보여준다. */
 /* BEGIN DATA */
 window.EXAM_DUTIES = {
-  "2026-10-13": [{"period": 1, "duty": "1학년 8반 정감독", "subject": "공통수학2"}, {"period": 2, "duty": "3학년 복도 감독", "subject": "한국지리"}]
+  "2026-10-13": [{"period": 1, "duty": "1학년 8반 정감독", "subject": "공통수학2"}, {"period": 2, "duty": "3학년 복도 감독", "subject": "한국지리"}],
+  "2026-10-14": [{"period": 2, "duty": "3학년 8반 정감독", "subject": "사회·문화"}]
 };
 /* END DATA */
