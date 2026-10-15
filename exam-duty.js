@@ -5,6 +5,7 @@
 /* BEGIN DATA */
 window.EXAM_DUTIES = {
   "2026-10-13": [{"period": 1, "duty": "1학년 8반 정감독", "subject": "공통수학2"}, {"period": 2, "duty": "3학년 복도 감독", "subject": "한국지리"}],
-  "2026-10-14": [{"period": 2, "duty": "3학년 8반 정감독", "subject": "사회·문화"}]
+  "2026-10-14": [{"period": 2, "duty": "3학년 8반 정감독", "subject": "사회·문화"}],
+  "2026-10-15": [{"period": 1, "duty": "1학년 1반 정감독", "subject": "통합사회2"}, {"period": 2, "duty": "2학년 부감독", "subject": "물질과 에너지, 정치"}]
 };
 /* END DATA */

@@ -57,7 +57,8 @@ def parse(path, name):
         if row[3] == '정':
             subject, grade = row[1], row[2]
             for col in range(4, len(row)):
-                if row[col] != name:
+                # 복도처럼 한 칸에 "박혜미\n김대운"으로 두 명이 들어가기도 한다.
+                if name not in re.split(r'[\n,·/]+\s*', row[col]):
                     continue
                 place = header[col].replace('\n', '') if col < len(header) else ''
                 if place.isdigit():
