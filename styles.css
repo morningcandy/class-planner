@@ -572,3 +572,33 @@ textarea { resize: vertical; line-height: 1.65; }
 .call-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: #fff4e6; color: var(--warning); font-size: 13px; font-weight: 700; }
 .call-chip.done { background: #e9f6f0; color: var(--success); }
 .call-cancel { padding: 2px 8px; border: 0; border-radius: 999px; background: rgba(0,0,0,.06); color: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+
+/* 달력 아래 관련 앱(학급 알림장 예약링크·학습링크와 같은 목록) */
+.links-panel .link-group-title { margin: 12px 0 6px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.links-panel .link-group-title:first-of-type { margin-top: 4px; }
+.link-list { display: grid; gap: 6px; }
+.link-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); text-decoration: none; }
+.link-card:hover { border-color: var(--primary); background: var(--primary-soft); }
+.link-card .link-emoji { font-size: 18px; line-height: 1; }
+.link-card .link-text { min-width: 0; }
+.link-card .link-name { display: block; font-size: 13px; font-weight: 800; }
+.link-card .link-desc { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.link-card .link-arrow { margin-left: auto; color: var(--muted); font-size: 13px; }
+.empty-state.small { padding: 12px; }
+
+/* 학급 알림장 검토함 접기 */
+.review-fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; cursor: pointer; }
+.review-fold > summary::-webkit-details-marker { display: none; }
+.review-fold > summary h2 { margin: 0; }
+.review-fold[open] > summary { margin-bottom: 14px; }
+.review-fold-toggle { flex-shrink: 0; color: var(--muted); font-size: 12px; font-weight: 800; }
+.review-fold .review-fold-close,
+.review-fold[open] .review-fold-open { display: none; }
+.review-fold[open] .review-fold-close { display: inline; }
+
+@media (min-width: 941px) {
+  .links-panel .link-group-title { font-size: 14px; }
+  .link-card .link-name { font-size: 15px; }
+  .link-card .link-desc { font-size: 13px; }
+  .review-fold-toggle { font-size: 15px; }
+}

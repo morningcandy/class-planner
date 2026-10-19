@@ -209,7 +209,10 @@
       resultBox.className = `result-message${result.warning ? ' warning' : ''}`;
       resultBox.textContent = `개인 알림장 ${result.plannerItems.length}건, 공지 검토함 ${result.notices.length}건을 만들었습니다.${result.warning ? ` ${result.warning}` : ''}`;
       await loadAdminData();
-      if (result.notices.length) $('reviewPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (result.notices.length) {
+        $('reviewFold').open = true;
+        $('reviewPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
       return result;
     } finally {
       button.disabled = false;
@@ -342,6 +345,10 @@
       : notice.status === '게시됨'
         ? `<button data-notice-action="close" data-id="${escapeHtml(notice.notice_id)}">게시 종료</button>`
         : `<button data-notice-action="review" data-id="${escapeHtml(notice.notice_id)}">다시 검토</button>`;
+    // 게시됨은 '게시 종료'가 같은 일을 하므로 검토대기·보류에만 삭제를 둔다.
+    const deleteAction = notice.status === '게시됨'
+      ? ''
+      : `<button class="danger" data-notice-action="delete" data-id="${escapeHtml(notice.notice_id)}">삭제</button>`;
     return `
       <article class="${classes.join(' ')}">
         <div class="row-top">
@@ -366,6 +373,7 @@
             <button class="order-button" data-notice-action="move-down" data-id="${escapeHtml(notice.notice_id)}" ${index === total - 1 || state.noticeOrderSaving ? 'disabled' : ''} aria-label="${escapeHtml(notice.title)} 아래로 이동">↓ 아래로</button>
             <button data-notice-action="edit" data-id="${escapeHtml(notice.notice_id)}">수정</button>
             ${statusActions}
+            ${deleteAction}
           </div>
         </div>
       </article>`;
@@ -529,6 +537,25 @@
   function calendarEntryClass(type) {
     if (type === '학사') return 'subject';
     return 'school';
+  }
+
+  /* 달력 아래 관련 앱. 학급 알림장 data.js의 bookingLinks·studyLinks를 그대로 읽어
+     링크를 한 곳(class-notice/data.js)에서만 고치면 두 화면에 같이 반영된다. */
+  function renderLinkList(holderId, list) {
+    const links = Array.isArray(list) ? list.filter((link) => /^https?:\/\//.test(String(link.url || ''))) : [];
+    $(holderId).innerHTML = links.length
+      ? links.map((link) => `
+        <a class="link-card" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">
+          <span class="link-emoji" aria-hidden="true">${escapeHtml(link.emoji || '🔗')}</span>
+          <span class="link-text"><span class="link-name">${escapeHtml(link.name || '')}</span><span class="link-desc">${escapeHtml(link.desc || '')}</span></span>
+          <span class="link-arrow" aria-hidden="true">↗</span>
+        </a>`).join('')
+      : '<div class="empty-state small">등록된 링크가 없습니다.</div>';
+  }
+
+  function renderRelatedLinks() {
+    renderLinkList('plannerBookingLinks', typeof bookingLinks !== 'undefined' ? bookingLinks : []);
+    renderLinkList('plannerStudyLinks', typeof studyLinks !== 'undefined' ? studyLinks : []);
   }
 
   function renderCalendar() {
@@ -1232,6 +1259,16 @@
     openModal('noticeModal');
   }
 
+  /* 검토함 삭제: 시트 행은 지우지 않고 '종료됨'으로 바꿔 검토함 세 탭(검토대기·게시됨·보류)에서 뺀다.
+     학생 API는 게시됨만 내보내므로 학생 화면에도 나타나지 않고, 기록은 시트에 남는다. */
+  async function deleteNotice(noticeId) {
+    const notice = state.notices.find((entry) => String(entry.notice_id) === String(noticeId));
+    if (!notice || !window.confirm(`‘${notice.title}’ 공지를 검토함에서 삭제할까요?\n(시트 기록은 ‘종료됨’ 상태로 남습니다)`)) return;
+    await api('setNoticeStatus', { noticeId, status: '종료됨' });
+    showToast('검토함에서 삭제했습니다.');
+    await loadAdminData();
+  }
+
   async function changeNoticeStatus(noticeId, status) {
     if (status === '게시됨' && !window.confirm('확인한 내용을 학생 알림장에 게시할까요?')) return;
     await api('setNoticeStatus', { noticeId, status });
@@ -1434,6 +1471,7 @@
       if (noticeAction === 'hold') await changeNoticeStatus(id, '보류');
       if (noticeAction === 'close') await changeNoticeStatus(id, '종료됨');
       if (noticeAction === 'review') await changeNoticeStatus(id, '검토대기');
+      if (noticeAction === 'delete') await deleteNotice(id);
     } catch (error) { showToast(error.message); }
   });
 
@@ -1559,6 +1597,7 @@
   if ($('claudeBridgeUrl').value && $('claudeBridgeKey').value) setClaudeState('연결 확인 필요', 'pending');
   renderClaudeMessages();
   renderCalendar();
+  renderRelatedLinks();
   renderNow();
   setInterval(renderNow, 1000);
   window.addEventListener('resize', () => {

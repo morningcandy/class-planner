@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#3157d5">
   <title>효니효의 개인 알림장</title>
-  <link rel="stylesheet" href="styles.css?v=20260928-confirm1">
+  <link rel="stylesheet" href="styles.css?v=20261019-review1">
   <link rel="stylesheet" href="theme-b.css?v=20260920-cal1">
   <script>
     /* 저장해 둔 디자인을 첫 페인트 전에 적용해 깜빡임을 막는다. */
@@ -133,6 +133,13 @@
           </div>
           <div class="calendar-grid" id="calendarGrid"></div>
           <div class="calendar-detail" id="calendarDetail">이번 달 학사일정을 불러오는 중입니다.</div>
+        </section>
+        <section class="panel links-panel" id="linksPanel">
+          <div class="section-heading compact"><div><p class="eyebrow">CLASS APPS</p><h2>관련 앱</h2><span class="muted hint-xs">학급 알림장의 예약링크·학습링크와 같은 목록입니다.</span></div></div>
+          <p class="link-group-title">📅 예약링크</p>
+          <div class="link-list" id="plannerBookingLinks"></div>
+          <p class="link-group-title">🔗 학습링크</p>
+          <div class="link-list" id="plannerStudyLinks"></div>
         </section>
         <section class="panel myclass-panel">
           <div class="section-heading compact"><div><p class="eyebrow">MY TIMETABLE</p><h2>내 시간표</h2></div><span class="muted hint-sm">2학기 · 시정표 기준</span></div>
@@ -280,8 +287,13 @@
     </section>
 
     <section class="panel" id="reviewPanel">
+      <details class="review-fold" id="reviewFold">
+      <summary class="review-summary">
+        <div><p class="eyebrow">승인 후 학생에게 공개</p><h2>학급 알림장 검토함 <span class="count-pill" id="reviewBadge">0</span></h2></div>
+        <span class="review-fold-toggle"><span class="review-fold-open">＋ 펼치기</span><span class="review-fold-close">− 접기</span></span>
+      </summary>
       <div class="section-heading">
-        <div><p class="eyebrow">승인 후 학생에게 공개</p><h2>학급 알림장 검토함 <span class="count-pill" id="reviewBadge">0</span></h2><span class="muted hint-sm">위로·아래로 순서를 정한 뒤 ‘순서 저장’을 누르면 Google Sheets와 학급 알림장에 반영됩니다.</span><span class="notice-order-status" id="noticeOrderStatus" aria-live="polite">순서를 변경할 수 있습니다.</span></div>
+        <div><span class="muted hint-sm">위로·아래로 순서를 정한 뒤 ‘순서 저장’을 누르면 Google Sheets와 학급 알림장에 반영됩니다. ‘삭제’는 검토함에서만 빼고 시트 기록은 남깁니다.</span><span class="notice-order-status" id="noticeOrderStatus" aria-live="polite">순서를 변경할 수 있습니다.</span></div>
         <div class="review-controls">
           <div class="segmented" id="noticeFilter">
             <button type="button" class="active" data-status="검토대기">검토 대기</button>
@@ -292,6 +304,7 @@
         </div>
       </div>
       <div class="stack" id="noticeList"></div>
+      </details>
     </section>
   </main>
 
@@ -342,11 +355,11 @@
     </div>
     <button type="button" class="theme-btn" id="themeBtn">🎨 디자인</button>
   </div>
-  <script src="../class-notice/data.js?v=20260914-exam1"></script>
+  <script src="../class-notice/data.js?v=20261019-links1"></script>
   <script src="config.js"></script>
   <script src="attachment-utils.js?v=20260816-files1"></script>
   <script src="exam-duty.js?v=20261016-duty4"></script>
-  <script src="app.js?v=20261013-duty1"></script>
+  <script src="app.js?v=20261019-review1"></script>
   <script src="call-panel.js?v=20260928-confirm1"></script>
   <script src="teacher-timetable.js?v=20260907-tt1"></script>
   <script src="teacher-search.js?v=20260907-tt1"></script>
