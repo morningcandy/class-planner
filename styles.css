@@ -471,10 +471,6 @@ textarea { resize: vertical; line-height: 1.65; }
 
 /* 상담 일정표 (달력 위) — 학생·학부모 상담 예약을 날짜별로 */
 .counsel-panel { display: grid; gap: 10px; }
-.counsel-setup { display: grid; gap: 6px; }
-.counsel-setup input { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
-.counsel-setup-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.counsel-setup-actions .button { padding: 7px 11px; font-size: 12px; }
 .counsel-body { display: grid; gap: 8px; max-height: 420px; overflow-y: auto; }
 .cs-day { border: 1px solid #edf0f5; border-radius: 10px; padding: 8px 10px; background: #fafbfe; }
 .cs-day.today { border-color: #fdba74; background: #fff7ed; }
