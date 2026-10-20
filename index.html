@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#3157d5">
   <title>효니효의 개인 알림장</title>
-  <link rel="stylesheet" href="styles.css?v=20261019-review1">
+  <link rel="stylesheet" href="styles.css?v=20261020-counsel1">
   <link rel="stylesheet" href="theme-b.css?v=20260920-cal1">
   <script>
     /* 저장해 둔 디자인을 첫 페인트 전에 적용해 깜빡임을 막는다. */
@@ -122,6 +122,24 @@
       </div>
 
       <aside class="side-column">
+        <section class="panel counsel-panel hidden" id="counselPanel">
+          <div class="section-heading compact">
+            <div><p class="eyebrow">COUNSELING</p><h2>상담 일정표</h2><span class="muted hint-xs" id="counselNote"></span></div>
+            <div class="calendar-nav">
+              <button type="button" id="counselRefreshBtn" aria-label="새로고침">↻</button>
+              <button type="button" id="counselSetupBtn" aria-label="상담 앱 연결 설정">⚙</button>
+            </div>
+          </div>
+          <form class="counsel-setup hidden" id="counselSetup" autocomplete="off">
+            <input id="counselStudentPw" type="password" autocomplete="off">
+            <input id="counselParentKey" type="password" autocomplete="off">
+            <div class="counsel-setup-actions">
+              <button class="button primary" type="submit">저장</button>
+              <button class="button secondary" type="button" id="counselForgetBtn">이 브라우저에서 지우기</button>
+            </div>
+          </form>
+          <div class="counsel-body" id="counselBody"></div>
+        </section>
         <section class="panel sticky-panel">
           <div class="section-heading compact">
             <div><p class="eyebrow">ACADEMIC CALENDAR</p><h2 id="calendarTitle">학사일정 달력</h2><span class="muted hint-xs">개인 알림장 내용은 달력에 자동 반영하지 않습니다.</span></div>
@@ -365,6 +383,7 @@
   <script src="teacher-search.js?v=20260907-tt1"></script>
   <script src="exam-schedule.js?v=20260917-exam2"></script>
   <script src="training-schedule.js?v=20261013-exambell1"></script>
+  <script src="counsel-schedule.js?v=20261020-counsel1"></script>
   <script src="theme-switch.js?v=20260830-themeb1"></script>
 </body>
 </html>

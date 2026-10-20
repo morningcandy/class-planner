@@ -469,6 +469,34 @@ textarea { resize: vertical; line-height: 1.65; }
 .train-tt tr.mark td.train-topic { color: #92610a; }
 .train-tt tr.today td { background: #fff7ed; }
 
+/* 상담 일정표 (달력 위) — 학생·학부모 상담 예약을 날짜별로 */
+.counsel-panel { display: grid; gap: 10px; }
+.counsel-setup { display: grid; gap: 6px; }
+.counsel-setup input { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }
+.counsel-setup-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.counsel-setup-actions .button { padding: 7px 11px; font-size: 12px; }
+.counsel-body { display: grid; gap: 8px; max-height: 420px; overflow-y: auto; }
+.cs-day { border: 1px solid #edf0f5; border-radius: 10px; padding: 8px 10px; background: #fafbfe; }
+.cs-day.today { border-color: #fdba74; background: #fff7ed; }
+.cs-date { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 12px; font-weight: 800; color: #3b4459; }
+.cs-date b { color: #c2410c; font-size: 11px; }
+.cs-date span { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 700; }
+.cs-day ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.cs-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #3b4459; }
+.cs-row.done { opacity: .5; }
+.cs-time { width: 64px; flex: none; font-weight: 800; line-height: 1.15; }
+.cs-time small { display: block; font-size: 9px; font-weight: 600; color: #8a93a6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-badge { flex: none; padding: 2px 6px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+.cs-badge.student { background: #edf1ff; color: #3157d5; }
+.cs-badge.parent { background: #e6f4ea; color: #1f7a45; }
+.cs-who { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-method { flex: none; font-size: 10px; color: var(--muted); }
+.cs-done { flex: none; margin-left: auto; font-size: 10px; font-weight: 800; color: #1f7a45; }
+.cs-error { margin: 0; padding: 7px 9px; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-size: 11px; font-weight: 700; }
+.cs-empty { margin: 0; font-size: 12px; }
+.cs-past summary { cursor: pointer; font-size: 11px; font-weight: 800; color: var(--muted); padding: 2px 0 6px; }
+.cs-past .cs-day { margin-bottom: 6px; }
+
 .hint-sm { font-size: 11px; }
 .hint-xs { font-size: 10px; }
 
