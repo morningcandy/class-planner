@@ -156,29 +156,6 @@ test('puts last week unfinished recycling duty first', () => {
   assert.deepEqual(picks.map((pick) => [pick.number, pick.carried_from]), [[12, 'R1'], [5, '']]);
 });
 
-test('accepts only our own Drive thumbnail URLs as notice photos', () => {
-  const context = appsScriptContext();
-  const good = 'https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOp&sz=w1600';
-  const bad = [
-    'https://evil.example.com/a.png',
-    'javascript:alert(1)',
-    'https://drive.google.com/uc?export=view&id=1AbCdEfGhIjKlMnOp',
-    '<img src=x onerror=alert(1)>',
-  ];
-  assert.equal(vm.runInContext(`safeImageUrl_(${JSON.stringify(good)})`, context), good);
-  bad.forEach((value) => {
-    assert.equal(vm.runInContext(`safeImageUrl_(${JSON.stringify(value)})`, context), '');
-  });
-  assert.equal(vm.runInContext(`normalizeImageUrls_(${JSON.stringify(good + ',' + bad[0] + ',' + good)})`, context), good);
-  assert.equal(vm.runInContext(`splitImageUrls_(${JSON.stringify(bad.join(','))}).length`, context), 0);
-});
-
-test('rejects more notice photos than the per-notice limit', () => {
-  const context = appsScriptContext();
-  const urls = Array.from({ length: 7 }, (value, index) => `https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMn0${index}&sz=w1600`);
-  assert.throws(() => vm.runInContext(`normalizeImageUrls_(${JSON.stringify(urls.join(','))})`, context), /최대 6장/);
-});
-
 test('writes a "regular helper" recycling notice when nobody was late', () => {
   const context = appsScriptContext();
   context.id_ = () => 'N_TEST';

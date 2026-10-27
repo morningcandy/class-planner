@@ -22,7 +22,7 @@ const APP = Object.freeze({
     students: ['student_id', 'number', 'name', 'personal_code', 'active', 'note'],
     inbox: ['input_id', 'received_at', 'command', 'raw_text', 'analysis_json', 'status', 'warning'],
     planner: ['item_id', 'input_id', 'category', 'item_type', 'title', 'date', 'due_date', 'note', 'priority', 'status', 'linked_notice_ids', 'created_at', 'updated_at'],
-    notices: ['notice_id', 'input_id', 'scope', 'target_student_ids', 'title', 'content', 'notice_date', 'due_date', 'urgent', 'notice_type', 'status', 'published_at', 'ends_at', 'created_at', 'updated_at', 'sort_order', 'starts_at', 'image_urls'],
+    notices: ['notice_id', 'input_id', 'scope', 'target_student_ids', 'title', 'content', 'notice_date', 'due_date', 'urgent', 'notice_type', 'status', 'published_at', 'ends_at', 'created_at', 'updated_at', 'sort_order', 'starts_at'],
     responses: ['responded_at', 'student_id', 'item_type', 'item_id', 'response'],
     audit: ['changed_at', 'actor', 'action', 'record_type', 'record_id', 'summary'],
     calls: ['call_id', 'student_id', 'number', 'caller', 'reason', 'status', 'created_at', 'acked_at', 'acked_by'],
@@ -241,7 +241,6 @@ function doPost(e) {
       case 'updateNotice': return json_(updateNotice_(body.notice || {}));
       case 'setNoticeStatus': return json_(setNoticeStatus_(body.noticeId, body.status));
       case 'reorderNotices': return json_(reorderNotices_(body.noticeIds || []));
-      case 'uploadNoticeImage': return json_(uploadNoticeImage_(body.file || {}));
       case 'createCall': return json_(createCall_(body.call || {}));
       case 'cancelCall': return json_(cancelCall_(body.callId));
       default: throw new Error('지원하지 않는 요청입니다.');
@@ -688,7 +687,6 @@ function getStudentFeed_(code) {
         dueDate: String(notice.due_date || ''),
         endsAt: String(notice.ends_at || notice.due_date || notice.notice_date || today_()),
         urgent: isTrue_(notice.urgent),
-        images: splitImageUrls_(notice.image_urls),
       }));
     }
   });
@@ -1285,7 +1283,6 @@ function createNotice_(notice) {
     updated_at: now,
     sort_order: nextNoticeSortOrder_(1),
     starts_at: normalizeDateTime_(notice.starts_at),
-    image_urls: normalizeImageUrls_(notice.image_urls),
   };
   if (!row.title) throw new Error('공지 제목을 입력해주세요.');
   upsertObject_('notices', 'notice_id', row);
@@ -1308,8 +1305,6 @@ function updateNotice_(notice) {
     ends_at: normalizeDate_(notice.ends_at),
     // 예약 시각을 보내지 않는 화면(개인 알림장 검토함)에서 수정해도 예약이 풀려 즉시 공개되지 않게 유지
     starts_at: notice.starts_at === undefined ? current.starts_at : normalizeDateTime_(notice.starts_at),
-    // 사진을 보내지 않는 화면(개인 알림장 검토함)에서 수정해도 기존 사진이 지워지지 않게 유지
-    image_urls: notice.image_urls === undefined ? normalizeImageUrls_(current.image_urls) : normalizeImageUrls_(notice.image_urls),
     updated_at: isoNow_(),
   });
   if (!merged.title) throw new Error('공지 제목을 입력해주세요.');
@@ -1646,71 +1641,6 @@ function normalizeDate_(value) {
   if (!text) return '';
   const match = text.match(/^(20\d{2})-(\d{2})-(\d{2})$/);
   return match ? text : extractDate_(text);
-}
-
-/* ── 공지 사진 ──────────────────────────────────────────────────────────
-   사진은 Drive 전용 폴더에 올리고 시트에는 URL만 둔다. 학생 앱은 URL만 받는다.
-   폴더 ID는 Script Property NOTICE_IMAGE_FOLDER_ID. 없으면 처음 올릴 때 만든다. */
-
-const NOTICE_IMAGE = Object.freeze({
-  folderName: '학급알림장 공지사진',
-  maxBytes: 6 * 1024 * 1024,
-  mimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
-  maxPerNotice: 6,
-});
-
-function noticeImageFolder_() {
-  const props = PropertiesService.getScriptProperties();
-  const saved = props.getProperty('NOTICE_IMAGE_FOLDER_ID');
-  if (saved) {
-    try { return DriveApp.getFolderById(saved); } catch (error) { /* 폴더가 지워졌으면 새로 만든다 */ }
-  }
-  const folder = DriveApp.createFolder(NOTICE_IMAGE.folderName);
-  props.setProperty('NOTICE_IMAGE_FOLDER_ID', folder.getId());
-  return folder;
-}
-
-/* 관리자 화면이 보낸 base64 이미지를 Drive에 저장하고 표시용 URL을 돌려준다. */
-function uploadNoticeImage_(file) {
-  const mimeType = String(file.mimeType || '').toLowerCase();
-  if (NOTICE_IMAGE.mimeTypes.indexOf(mimeType) < 0) throw new Error('PNG·JPG·WEBP·GIF 이미지만 올릴 수 있습니다.');
-  const data = String(file.data || '').replace(/^data:[^,]*,/, '');
-  if (!data) throw new Error('이미지 데이터가 비어 있습니다.');
-  const bytes = Utilities.base64Decode(data);
-  if (bytes.length > NOTICE_IMAGE.maxBytes) throw new Error('사진 한 장은 6MB 이하여야 합니다.');
-  const name = String(file.name || 'notice').replace(/[^A-Za-z0-9._가-힣-]/g, '_').slice(0, 60);
-  const blob = Utilities.newBlob(bytes, mimeType, id_('IMG') + '-' + name);
-  const created = noticeImageFolder_().createFile(blob);
-  created.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  audit_('사진업로드', '공지사항', created.getId(), name);
-  return { ok: true, url: noticeImageUrl_(created.getId()), fileId: created.getId() };
-}
-
-function noticeImageUrl_(fileId) {
-  return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1600';
-}
-
-/* 학생 화면에 <img>로 나가는 값이므로 우리가 올린 Drive 썸네일 URL만 통과시킨다. */
-function safeImageUrl_(value) {
-  const text = String(value || '').trim();
-  const match = text.match(/^https:\/\/drive\.google\.com\/thumbnail\?id=([A-Za-z0-9_-]{10,})(?:&sz=w\d{2,4})?$/);
-  return match ? noticeImageUrl_(match[1]) : '';
-}
-
-function splitImageUrls_(value) {
-  return String(value || '').split(',')
-    .map(function (item) { return safeImageUrl_(item); })
-    .filter(function (item) { return !!item; })
-    .slice(0, NOTICE_IMAGE.maxPerNotice);
-}
-
-function normalizeImageUrls_(value) {
-  const list = Array.isArray(value) ? value : String(value || '').split(',');
-  const urls = list.map(function (item) { return safeImageUrl_(item); }).filter(function (item) { return !!item; });
-  const unique = [];
-  urls.forEach(function (url) { if (unique.indexOf(url) < 0) unique.push(url); });
-  if (unique.length > NOTICE_IMAGE.maxPerNotice) throw new Error('공지 하나에 사진은 최대 ' + NOTICE_IMAGE.maxPerNotice + '장까지 넣을 수 있습니다.');
-  return unique.join(',');
 }
 
 /* 예약 게시 시각. 입력은 "2026-09-18 08:00", "2026-09-18T08:00", 날짜만("2026-09-18" → 00:00),
