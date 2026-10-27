@@ -553,8 +553,16 @@
       : '<div class="empty-state small">등록된 링크가 없습니다.</div>';
   }
 
+  /* 교사 화면에서는 예약실 대신 관리자 페이지로 연결한다. 학생이 보는 data.js에는 관리자 주소를 넣지 않으려고
+     여기서만 학생용 주소 → 관리자 주소로 바꿔 끼운다. */
+  const BOOKING_ADMIN_LINKS = {
+    'https://sandam-app.vercel.app/': { name: '학부모 상담 예약실 관리자', desc: '학부모 상담 예약 관리', url: 'https://sandam-app.vercel.app/admin' },
+    'https://student-counsel.vercel.app/': { name: '학생 상담 예약 관리자', desc: '학생 상담 예약 관리', url: 'https://student-counsel.vercel.app/admin.html' },
+  };
+
   function renderRelatedLinks() {
-    renderLinkList('plannerBookingLinks', typeof bookingLinks !== 'undefined' ? bookingLinks : []);
+    const booking = typeof bookingLinks !== 'undefined' && Array.isArray(bookingLinks) ? bookingLinks : [];
+    renderLinkList('plannerBookingLinks', booking.map((link) => ({ ...link, ...(BOOKING_ADMIN_LINKS[link.url] || {}) })));
     renderLinkList('plannerStudyLinks', typeof studyLinks !== 'undefined' ? studyLinks : []);
   }
 
