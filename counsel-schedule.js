@@ -6,7 +6,7 @@
   'use strict';
 
   const PERIODS = [
-    { kind: 'student', label: '학생 상담', start: '2026-10-20', end: '2026-10-30' },
+    { kind: 'student', label: '학생 상담', start: '2026-10-20', end: '2026-11-06' },
     { kind: 'parent', label: '학부모 상담', start: '2026-11-02', end: '2026-11-06' }
   ];
   const STUDENT_FEED = 'https://student-counsel.vercel.app/api/availability?view=planner';
