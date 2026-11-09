@@ -36,8 +36,18 @@
     return (await res.json()).items || [];
   }
 
+  // 학생 상담 피드를 못 읽을 때(2026-11 상담 앱 Blob 조회 한도 초과) 대신 쓰는 확정 일정. 번호만.
+  // 연장된 11/9~11/13 분량. 날짜가 지나면 '지난 상담'으로 내려가므로 지울 필요 없다.
+  const STUDENT_FALLBACK = [
+    ['2026-11-09', 1, 8], ['2026-11-10', 9, 12], ['2026-11-11', 15, 27],
+    ['2026-11-12', 18, 20], ['2026-11-13', 24, 30],
+  ].flatMap(([date, morning, lunch]) => [
+    { date, slot: '07:40-08:00', tag: '아침 조회 전', number: morning, status: 'reserved' },
+    { date, slot: '12:50-13:10', tag: '점심시간', number: lunch, status: 'reserved' },
+  ]);
+
   async function loadStudent() {
-    const rows = await loadFeed(STUDENT_FEED, '학생 상담 앱');
+    const rows = await loadFeed(STUDENT_FEED, '학생 상담 앱').catch(() => STUDENT_FALLBACK);
     return rows
       .filter((b) => inPeriod('student', b.date))
       .map((b) => ({
