@@ -30,6 +30,14 @@
     return String(text).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   }
 
+  // 과목이 하나도 없는 학년 열(예: 기말고사 때 3학년)은 숨긴다.
+  const shown = [0, 1, 2].filter((g) => exam.days.some((d) => d.slots.some((s) => s.grades[g])));
+  const head = panel.querySelector('thead');
+  if (head) {
+    head.innerHTML = '<tr><th class="exam-date">날짜</th><th class="exam-time">시간</th>'
+      + shown.map((g) => `<th${g + 1 === MY_GRADE ? ' class="mine"' : ''}>${g + 1}학년</th>`).join('') + '</tr>';
+  }
+
   body.innerHTML = exam.days.map((day) => day.slots.map((slot, i) => {
     const classes = [];
     if (i === 0) classes.push('day-start');
@@ -37,9 +45,10 @@
     const dateCell = i === 0
       ? `<td class="exam-date" rowspan="${day.slots.length}">${md(day.date)}<br>(${wd(day.date)})</td>`
       : '';
-    const grades = slot.grades.map((subject, g) => {
+    const grades = shown.map((g) => {
+      const subject = slot.grades[g] || '';
       const cls = g + 1 === MY_GRADE ? ' class="mine"' : '';
-      return `<td${cls}>${escapeHtml(subject)}</td>`;
+      return `<td${cls}>${subject ? escapeHtml(subject) : "·"}</td>`;
     }).join('');
     return `<tr class="${classes.join(' ')}">${dateCell}<td class="exam-time">${escapeHtml(slot.start)}<br>${escapeHtml(slot.end)}</td>${grades}</tr>`;
   }).join('')).join('');
