@@ -468,6 +468,10 @@ textarea { resize: vertical; line-height: 1.65; }
 .train-tt tr.mark td { background: #fffbeb; }
 .train-tt tr.mark td.train-topic { color: #92610a; }
 .train-tt tr.today td { background: #fff7ed; }
+.train-tt .train-memo { margin-top: 3px; font-size: 11px; font-weight: 500; line-height: 1.4; color: #6b7280; }
+.train-tt tr.off td { color: #9ca3af; }
+.train-tt tr.off td.train-topic { color: #9ca3af; text-decoration: line-through; }
+.train-tt tr.off .train-memo { color: #b45309; text-decoration: none; }
 
 /* 상담 일정표 (달력 위) — 학생·학부모 상담 예약을 날짜별로 */
 .counsel-panel { display: grid; gap: 10px; }

@@ -743,9 +743,11 @@
         return { label, start: slot.start, end: slot.end, kind: 'event' };
       });
       const training = (window.TRAINING_SCHEDULE?.rows || [])
-        .filter((row) => row.date === dateStr)
+        .filter((row) => row.date === dateStr && !row.off)
         .map((row) => {
-          const [start, end] = String(row.time).split('~').map((part) => part.trim());
+          // '13:00'처럼 시작만 있거나 '11:00 ~ 점심 식사 후'처럼 끝이 시각이 아니면 시작 시각에 표시한다.
+          const [start, rawEnd] = String(row.time).split('~').map((part) => part.trim());
+          const end = /^\d{1,2}:\d{2}$/.test(rawEnd || '') ? rawEnd : start;
           return { label: row.place ? `${row.topic} (${row.place})` : row.topic, start, end, kind: 'event' };
         });
       const dutyNote = Array.isArray(duties) ? ` · 감독 ${duties.length}회` : '';
