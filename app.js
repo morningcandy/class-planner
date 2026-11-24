@@ -562,7 +562,12 @@
 
   function renderRelatedLinks() {
     const booking = typeof bookingLinks !== 'undefined' && Array.isArray(bookingLinks) ? bookingLinks : [];
-    renderLinkList('plannerBookingLinks', booking.map((link) => ({ ...link, ...(BOOKING_ADMIN_LINKS[link.url] || {}) })));
+    // 생기부 기재 링크(recordLinks)는 예약링크 맨 위에 붙인다. 교사는 학생 공개(opensAt) 전에도 미리 보고, 마감일이 지나면 숨긴다.
+    const now = today();
+    const records = (typeof recordLinks !== 'undefined' && Array.isArray(recordLinks) ? recordLinks : [])
+      .filter((link) => !link.closesAt || link.closesAt >= now)
+      .map((link) => ({ ...link, desc: link.opensAt ? `${link.desc || ''} · 학생 공개 ${Number(link.opensAt.slice(5, 7))}/${Number(link.opensAt.slice(8, 10))} ${link.opensAt.slice(11)}` : link.desc }));
+    renderLinkList('plannerBookingLinks', records.concat(booking.map((link) => ({ ...link, ...(BOOKING_ADMIN_LINKS[link.url] || {}) }))));
     renderLinkList('plannerStudyLinks', typeof studyLinks !== 'undefined' ? studyLinks : []);
   }
 
